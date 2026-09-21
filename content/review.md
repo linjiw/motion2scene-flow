@@ -199,6 +199,19 @@ The local-query idea has precedents in [3D FlowMatch Actor](https://arxiv.org/ht
 
 Proposed supervision predicts body/time compatibility, visibility and support-related relations for demonstrations **and alternative motions**. Use continuous geometry where available; use typed uncertain labels elsewhere. Match representation capacity, input access, label acquisition cost, optimizer exposure and inference budget across comparisons. A local reader that consults the full map cannot be advertised as a tiny standalone scene code.
 
+One proposed relation objective makes that requirement explicit. Let **Z = E(S_obs, h, g)**, and let **d_ref(M,S,b,k)** be a qualified clearance label for candidate motion M, body b and physical step k:
+
+```text
+Lrel = E[M ~ Q] Σb,k w(b,k) · mask(b,k)
+                    · ρ(R(Z,M,b,k) − d_ref(M,S,b,k))
+```
+
+**Q** must include valid alternatives and verified incompatible probes, not only the demonstrated motion. The mask excludes unsupported labels; weights must be bounded and evaluated rather than assumed to improve learning. In partial observations, a hidden obstacle cannot be treated as fully inferable just because a privileged teacher sees it. Retain visibility/unknown outputs and distinguish geometric supervision from empirical execution-risk supervision.
+
+A useful compression diagnostic is whether the representation preserves the decision on a fixed candidate set. If a declared cost estimate satisfies **|Ĵ(M) − J(M)| ≤ ε for every candidate**, choosing the minimum estimated cost incurs at most **2ε** regret within that set: apply the error bound once to the selected motion, use estimated-cost minimality, and apply it once to the true best motion. This elementary conditional bound motivates measuring decision distortion; we have not established the required uniform error bound, and it is not a safety or closed-loop theorem for the trained model.
+
+For later FM pretraining, preserve the fixed prefix in both the training path and deployment sampler, normalize loss over editable suffix coordinates, and skip examples with no editable suffix. First train a standard conditional FM baseline. Add relation or endpoint-geometry losses one at a time, measuring mode coverage and task validity as well as regression loss. The current negative sampler and representation results argue against combining all proposed objectives before identifying which one helps.
+
 Define an event window over preparation → constrained passage → whole-body exit → recovery. A stronger proposed event signal asks how much validated motion quality changes when adjustment is delayed, with the same repair and verification budget. A failed delayed reference only demonstrates sensitivity within that tested motion family; it does not prove no controller could recover.
 
 Attention maps alone are not causal explanations. Test whether moving the relevant beam changes the predicted posture appropriately, whether removing its patch harms the corresponding behavior, and whether unrelated geometric edits leave the action stable. Compare uniform exposure, low-clearance exposure and delayed-adjustment sensitivity separately.
