@@ -1,0 +1,115 @@
+# Fixed candidates, query budgets, abstention, and new source groups
+
+Written before new-reference geometry, new labels, budget curves or stopping
+results. Locally frozen exploratory follow-up; no external registration. The
+previous 4,500 development pairs remain diagnostic. A separate 20-group cohort
+tests transfer relative to this workspace's prior 120 references. These sources
+exist in a previously inventoried Kimodo corpus, not a newly collected population
+or verified MTC release. No FM, motor encoder or controller is trained/executed.
+
+## Question and decision
+
+Can a fixed-budget analytic candidate checker convert extra temporal queries
+into continuous 2 cm clearance certificates without missing brief collision
+witnesses? Does motion-bound selection improve over static time-gap refinement
+and endpoint-only refinement on source groups absent from our earlier studies?
+If certificate coverage remains low, do not treat sparse ranking as a validated
+FM safety filter. Distinguish checking supplied references from generating motion
+alternatives for a fixed scene: our candidate bank is motion/obstacle pairs.
+
+## Freeze the new cohort before querying its geometry
+
+Use the archived 1,000-reference route inventory. Exclude all 29 ancestry groups
+in the existing event manifest. There are 135 remaining references in 100 groups,
+and their source CSV paths exist. Sort remaining groups by SHA256 of
+`native-budget-v1:` plus group ID, select the first 20; within each group select
+the reference minimizing SHA256 of that salt plus reference ID. This metadata-only
+rule selects 00502, 00500, 00377, 00308, 00216, 00660, 00014, 00760, 00544, 00104,
+00016, 00049, 00355, 00423, 00154, 00420, 00459, 00940, 00362, 00143.
+All have at least 120 frames, so all registered budgets are available.
+
+Save selected records, source hashes, inventory/protocol/config/ancestry hashes
+before conversion. No replacements based on joint limits, geometry, labels or
+method outcomes. Fail on missing/inconsistent source files; preserve failures.
+Check group/ID/source-hash disjointness. Ancestry is the inherited prompt-component
+definition; this is not new-human-subject, new-generator or sensor generalization.
+
+## Frozen geometry and candidate construction
+
+Normalize source root quaternions and use the prior body-origin scene translation
+convention (first pelvis xy; all-body/all-frame min z to .1 m). Keep joint-limit
+violations; no clipping, retiming or repair. Audit USD FK against the same MJCF
+for every new source frame, with max position <1e-6 m, rotation <2e-6 rad.
+Check the already audited geometry and model hashes. No physics steps.
+
+Reuse the archived original motion-event recipe code and training-only scales.
+Construct the same 225 obstacle recipes: 5 motion-only anchors ×5 lateral offsets
+×3 heights ×3 shape types, with the original velocity/yaw direction rule. Do not
+fit scales or anchor rules on new references. Reproduce reference coordinates and
+all candidate specs for old references 00679, 00331 and 00623 before processing
+the new cohort. These are fixed recipe candidates, without learned probability
+selection; no new generator or data-dependent candidate filtering.
+
+New labels use the existing typed full-source-frame geometry and max-depth-8
+continuous refinement protocol: primitive overlap is a witness; >.02+tolerance
+continuous outer clearance is a pass; otherwise unknown. Store refinement cost,
+joint-limit flags, and full-source-frame witness masks for independent diagnosis.
+Labels never enter the selector. Candidate positions depend on source motion, not
+scene clearance. Full future reference and complete static obstacle are privileged
+inputs; this does not implement causal observation-conditioned navigation.
+
+## Query interventions
+
+Budgets are 8,16,32,64 distinct original timestamps, each reading all 45 shapes.
+Uniform uses a separate evenly spaced grid at each budget; its grids are not
+nested. Time-gap, endpoint and motion-bound start from the same uniform 8 frames
+and extend nested traces using the previously specified deterministic rules.
+Use a priority queue for incremental selection; require exact 16-frame trace,
+score and certificate parity with the previous implementation and old results.
+Time-gap bisects the largest time-index interval. Endpoint bisects the interval
+with smallest observed endpoint outer margin. Motion-bound minimizes the same
+two-endpoint per-shape lower bound and bisects motion-bound mass of its worst
+shape. Stable leftmost ties; no unqueried clearance, label or event-score access.
+
+The cumulative variation bound comes from all original root/joint intervals.
+Both-endpoint lower bound is (d_left+d_right-B)/2. Check endpoint consistency and
+complete support coverage. Learning errors are not certified variation bounds.
+Full-motion preprocessing cost is outside the geometry-query budget and reported.
+
+## Outcomes and stopping
+
+For each budget/method/population report: known-witness detection (denominator all
+typed witness pairs); certified count and fraction of all candidates; clear-label
+certification recall; abstention count; missed witnesses among abstentions. Reject
+only with an observed primitive witness; accept only with a continuous certificate;
+otherwise abstain. Assert no certificate/witness contradiction and record any new
+information on old unknown labels without relabeling the frozen cohort silently.
+Ranking top 30% remains a secondary diagnostic, never the strict acceptance rule.
+
+Separately execute early stopping for the three nested methods with maximum 64
+frames. Initial eight-frame query is atomic; afterwards stop at the first witness
+or continuous certificate. Save real queried counts, decisions and time, and check
+against the prefix of the full diagnostic trace. Unresolved at 64 is abstention.
+Charge all initial/queried frames, FK/bound preprocessing, selection, geometry and
+artifact I/O separately where measurable. Per-method compute measurements are
+single-host descriptive batch measurements, not real-time or hardware claims.
+
+For each cohort also report the prespecified subset with 1–5 primitive-overlap
+source frames (total across time, not assumed contiguous) using labels only after
+selection. Preserve old 00623/cell52 as a disclosed diagnostic, not a fresh test.
+
+## Analysis and accounting
+
+No tuning, checkpoint selection or new learning. Report all four budgets and four
+methods, not only the best budget. Primary paired contrasts at 64: motion-bound
+minus each nested control for certificate coverage and witness recall, plus early
+stop mean queried frames. Use 2,000 paired ancestry-group bootstrap draws, seed
+20260926, separately for old and new populations. Keep per-group counts and fixed
+candidate sets. Intervals are conditional on sources, generator and geometry;
+20 new groups do not establish hardware or new-generator generalization.
+
+Archive source/config/protocol snapshots and hashes, new references/candidates/
+labels, complete traces and stopped traces, runtime/query counters, paired metrics,
+figures and an honest result. CPU/two threads; upstream files read-only. If fresh
+source qualification fails, preserve the failed attempt and explain any protocol
+amendment before rerunning; never substitute easier sources after viewing outcomes.

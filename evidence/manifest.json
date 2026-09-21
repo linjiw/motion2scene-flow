@@ -1,0 +1,233 @@
+{
+  "review_date": "2026-09-21",
+  "scope": "Public research review, not a full experiment-data release",
+  "files": [
+    {
+      "source": "research/BOUNDARY_V2_PROTOCOL.md",
+      "source_sha256": "8e587bf9f44839e47d4bebbe401c928ff88563ae94a6516f2a2745aac67b669a",
+      "published": "evidence/notes/BOUNDARY_V2_PROTOCOL.txt",
+      "published_sha256": "8e587bf9f44839e47d4bebbe401c928ff88563ae94a6516f2a2745aac67b669a",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/BOUNDARY_V2_RESULT_zh.md",
+      "source_sha256": "da9f3471d6b12310bf5e9fbf79d3158371eb9553218afdf9117162525bb613dc",
+      "published": "evidence/notes/BOUNDARY_V2_RESULT_zh.txt",
+      "published_sha256": "da9f3471d6b12310bf5e9fbf79d3158371eb9553218afdf9117162525bb613dc",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/BOUNDED_FLOW_RESULT_zh.md",
+      "source_sha256": "02760b340b8e4899ce122a0869e030c69bba9681a7a6ac8a84a2565af2144bf8",
+      "published": "evidence/notes/BOUNDED_FLOW_RESULT_zh.txt",
+      "published_sha256": "02760b340b8e4899ce122a0869e030c69bba9681a7a6ac8a84a2565af2144bf8",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/BOUNDED_FLOW_V1_PROTOCOL.md",
+      "source_sha256": "603ccb97526de659ff1d6914f2d08dcb5f46b4b819f1e601893da62746080818",
+      "published": "evidence/notes/BOUNDED_FLOW_V1_PROTOCOL.txt",
+      "published_sha256": "603ccb97526de659ff1d6914f2d08dcb5f46b4b819f1e601893da62746080818",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/FM_CHECKER_RESULT_zh.md",
+      "source_sha256": "50af1913de121db553a14598c2e84ae3185d618ba9dbe1a1c941e6ac9e3625b3",
+      "published": "evidence/notes/FM_CHECKER_RESULT_zh.txt",
+      "published_sha256": "6430d20991aacb6d6b1f14d2f7635ff6ecd1c7ebc26d7f5392e4d94bfde9b60e",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/FM_CHECKER_V1_NUMERICS.md",
+      "source_sha256": "deddb60a77f491e23762824a450b6aa37113c72e18ea39198e87e74b45c71ee8",
+      "published": "evidence/notes/FM_CHECKER_V1_NUMERICS.txt",
+      "published_sha256": "deddb60a77f491e23762824a450b6aa37113c72e18ea39198e87e74b45c71ee8",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/FM_CHECKER_V1_PROTOCOL.md",
+      "source_sha256": "573128ee2e08c44eb800c0a82fa0826582f765708248e3ce5f3b69c6c226d0f0",
+      "published": "evidence/notes/FM_CHECKER_V1_PROTOCOL.txt",
+      "published_sha256": "573128ee2e08c44eb800c0a82fa0826582f765708248e3ce5f3b69c6c226d0f0",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/HYBRID_CHECKER_RESULT_zh.md",
+      "source_sha256": "42692f260e5916f83da4e52caa095ee08c3d2409677af6a7336f4685f08d0d1e",
+      "published": "evidence/notes/HYBRID_CHECKER_RESULT_zh.txt",
+      "published_sha256": "df3308afe26d84ca5f69c87d1440727eec0885cb799dba7e34bf7fd98327fe8f",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/HYBRID_CHECKER_V1_PROTOCOL.md",
+      "source_sha256": "3321bab09655111932487f5a14e37d0cb3c06a95f027090b2aa16a103db80310",
+      "published": "evidence/notes/HYBRID_CHECKER_V1_PROTOCOL.txt",
+      "published_sha256": "3321bab09655111932487f5a14e37d0cb3c06a95f027090b2aa16a103db80310",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/LOCAL_DATA_INVENTORY.md",
+      "source_sha256": "33a310b49d0a6a2c60ca1f11d875824375eec573e02dc87f868b022472eb1c66",
+      "published": "evidence/notes/LOCAL_DATA_INVENTORY.txt",
+      "published_sha256": "8a706ab18f84a4e03f490f09d3b7decc26abda802deb8a57ebb39652d977e88f",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/Motion2Scene_followup_zh.md",
+      "source_sha256": "194e6f2596d93c8990e81cf55e7509549b5f1e560047717f078cd4ebcedf7dca",
+      "published": "evidence/notes/Motion2Scene_followup_zh.txt",
+      "published_sha256": "194e6f2596d93c8990e81cf55e7509549b5f1e560047717f078cd4ebcedf7dca",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_BUDGET_RESULT_zh.md",
+      "source_sha256": "95086be7fcbdfe358701c07b6433a19c81d66eea072c75f16c7ee2a523c44cf3",
+      "published": "evidence/notes/NATIVE_BUDGET_RESULT_zh.txt",
+      "published_sha256": "e35924366e8509af17b1a04c49fcf0d6ae057981cb2e3186a73deb9548a52ff1",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_BUDGET_V1_PROTOCOL.md",
+      "source_sha256": "4bce29098bcf035dba2a4a0e119cd34cbfc1487f96e159922cbd3b7bc1b02a6b",
+      "published": "evidence/notes/NATIVE_BUDGET_V1_PROTOCOL.txt",
+      "published_sha256": "4bce29098bcf035dba2a4a0e119cd34cbfc1487f96e159922cbd3b7bc1b02a6b",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_EVENT_RESULT_zh.md",
+      "source_sha256": "3b9156e4c84fd0b3f3f6b6a4a4a427b9a6491e139945705791cfed5d2dff6019",
+      "published": "evidence/notes/NATIVE_EVENT_RESULT_zh.txt",
+      "published_sha256": "a0dccda5a5fe7dbe5dff1eec7ef42052752751dda6bf835f69773137e9061316",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_EVENT_V1_PROTOCOL.md",
+      "source_sha256": "186fc5f0432db08628e2abeac3598e8efce059e4169eeed1eb7e3e3e02ceecfe",
+      "published": "evidence/notes/NATIVE_EVENT_V1_PROTOCOL.txt",
+      "published_sha256": "186fc5f0432db08628e2abeac3598e8efce059e4169eeed1eb7e3e3e02ceecfe",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_REFERENCE_RESULT_zh.md",
+      "source_sha256": "ae47c4e437028deccf44d8e9a86a75482634e08d1dc1e51bcf2e06363672a844",
+      "published": "evidence/notes/NATIVE_REFERENCE_RESULT_zh.txt",
+      "published_sha256": "17d6e596887cc24086ee1e3c06d16a83a59d72eca8fa003c0195da1a7e9cbed0",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_REFERENCE_V1_PROTOCOL.md",
+      "source_sha256": "ce91361824cfaa862f4020cd4a914adf720d757c3c596455e160c5cd24a6435c",
+      "published": "evidence/notes/NATIVE_REFERENCE_V1_PROTOCOL.txt",
+      "published_sha256": "ce91361824cfaa862f4020cd4a914adf720d757c3c596455e160c5cd24a6435c",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_STRUCTURE_RESULT_zh.md",
+      "source_sha256": "33f7b482c3807b4a858d7fb7329ba60a3764514e63b14262020beeca1b08b91b",
+      "published": "evidence/notes/NATIVE_STRUCTURE_RESULT_zh.txt",
+      "published_sha256": "08ed28a6bda9b12d11e47e63524d7b99273dc98d32b697dc6b158a88f73f0ba3",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_STRUCTURE_V1_PHASE_CONTROL.md",
+      "source_sha256": "f2abec7cd9ce4ea39bb8ae7a0559d850ca7245eaf6abe323fadfc6d9dbe4f132",
+      "published": "evidence/notes/NATIVE_STRUCTURE_V1_PHASE_CONTROL.txt",
+      "published_sha256": "f2abec7cd9ce4ea39bb8ae7a0559d850ca7245eaf6abe323fadfc6d9dbe4f132",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/NATIVE_STRUCTURE_V1_PROTOCOL.md",
+      "source_sha256": "08c03f3b987263ff9f60b37cabf6880fd1e9b3d9f7a5684c5deb243892ca1b6b",
+      "published": "evidence/notes/NATIVE_STRUCTURE_V1_PROTOCOL.txt",
+      "published_sha256": "08c03f3b987263ff9f60b37cabf6880fd1e9b3d9f7a5684c5deb243892ca1b6b",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/PILOT_V1_PROTOCOL.md",
+      "source_sha256": "0754af6b44b1f5d6f8b33d9d26bc247e28f04019db7cba3d27c1206cbee4bcd4",
+      "published": "evidence/notes/PILOT_V1_PROTOCOL.txt",
+      "published_sha256": "0754af6b44b1f5d6f8b33d9d26bc247e28f04019db7cba3d27c1206cbee4bcd4",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/PILOT_V1_RESULT.md",
+      "source_sha256": "6cebe7d1cc2b462bee5b7ad6a2bfbefee8ac00696575eac7c7e017d83d5f4bf1",
+      "published": "evidence/notes/PILOT_V1_RESULT.txt",
+      "published_sha256": "6cebe7d1cc2b462bee5b7ad6a2bfbefee8ac00696575eac7c7e017d83d5f4bf1",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/SPATIAL_FLOW_NEXT.md",
+      "source_sha256": "1d47f903c5bd25d3ab8b11b35f066f7c18643dd748170fa18d624b58b9f01971",
+      "published": "evidence/notes/SPATIAL_FLOW_NEXT.txt",
+      "published_sha256": "1d47f903c5bd25d3ab8b11b35f066f7c18643dd748170fa18d624b58b9f01971",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/SPATIAL_FLOW_RESULT_zh.md",
+      "source_sha256": "1790b2bff80394be88098c154fb95f1b9a6c95e86f42d1a1a3bc04d238f46d1a",
+      "published": "evidence/notes/SPATIAL_FLOW_RESULT_zh.txt",
+      "published_sha256": "1790b2bff80394be88098c154fb95f1b9a6c95e86f42d1a1a3bc04d238f46d1a",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/SPATIAL_V3_PROTOCOL.md",
+      "source_sha256": "325a8735f62c9692ab0e425a12e281bbbffee915e5fb8a4c5f332f4b8e7347a8",
+      "published": "evidence/notes/SPATIAL_V3_PROTOCOL.txt",
+      "published_sha256": "325a8735f62c9692ab0e425a12e281bbbffee915e5fb8a4c5f332f4b8e7347a8",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "research/primary_source_audit.md",
+      "source_sha256": "94fa88acfee910a288c10d33269aa36c9afc9eb4fe295edbf1a386db675fba59",
+      "published": "evidence/notes/primary_source_audit.txt",
+      "published_sha256": "94fa88acfee910a288c10d33269aa36c9afc9eb4fe295edbf1a386db675fba59",
+      "transformation": "Plain-text snapshot; machine-specific home prefix generalized."
+    },
+    {
+      "source": "artifacts/hybrid-checker-v1/hybrid_results.png",
+      "source_sha256": "737408cb6063a0468b69573ee9d549f920080f2ed1ddd9d4e3ed574fe10e76cf",
+      "published": "assets/hybrid_results.png",
+      "published_sha256": "737408cb6063a0468b69573ee9d549f920080f2ed1ddd9d4e3ed574fe10e76cf",
+      "transformation": "Unmodified scientific figure."
+    },
+    {
+      "source": "artifacts/hybrid-checker-v1/hybrid_results.pdf",
+      "source_sha256": "cb5a4e389152caa5dd96ad4d284258458c3d16837f456620792ed6cd225c065f",
+      "published": "assets/hybrid_results.pdf",
+      "published_sha256": "cb5a4e389152caa5dd96ad4d284258458c3d16837f456620792ed6cd225c065f",
+      "transformation": "Unmodified scientific figure."
+    },
+    {
+      "source": "artifacts/native-event-v1/missed-event-00623-52.png",
+      "source_sha256": "cf5e66d5e7ce61076afa3d02f10632eb66ad10347ad0bd8e14c90b5ee650269c",
+      "published": "assets/missed-event.png",
+      "published_sha256": "cf5e66d5e7ce61076afa3d02f10632eb66ad10347ad0bd8e14c90b5ee650269c",
+      "transformation": "Unmodified scientific figure."
+    },
+    {
+      "source": "artifacts/bounded-flow-v1/bounded_comparison.png",
+      "source_sha256": "d3cc85ef4b084c9c548170ea8bbc4abb76f33cb04d25fc31910a4d3a862c8622",
+      "published": "assets/bounded_comparison.png",
+      "published_sha256": "d3cc85ef4b084c9c548170ea8bbc4abb76f33cb04d25fc31910a4d3a862c8622",
+      "transformation": "Unmodified scientific figure."
+    },
+    {
+      "source": "artifacts/native-budget-v1/budget_results.png",
+      "source_sha256": "8541705ab5becd4fc9e141a8f102ba572ba217e1eea781f74eb2cae87b6d6f5f",
+      "published": "assets/budget_results.png",
+      "published_sha256": "8541705ab5becd4fc9e141a8f102ba572ba217e1eea781f74eb2cae87b6d6f5f",
+      "transformation": "Unmodified scientific figure."
+    },
+    {
+      "published": "data/experiments.json",
+      "published_sha256": "6fa1b8647e6ec63c28f39dfb73ca7b2455a590a8eb9b2cf963c784f6473bfbea",
+      "transformation": "New research synthesis; results trace to the original notes above."
+    },
+    {
+      "published": "content/review.md",
+      "published_sha256": "300e15b19b3e2c96db33cd51a277d144926ad602b50b79ef69433cc948b13363",
+      "transformation": "New research synthesis; results trace to the original notes above."
+    }
+  ]
+}

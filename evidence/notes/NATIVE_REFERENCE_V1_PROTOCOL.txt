@@ -1,0 +1,66 @@
+# Native reference geometry and interface gate v1
+
+Registered before the new audit. This is an offline data/interface experiment,
+not a flow-model training run or a controller execution.
+
+## Question and population
+
+Can the existing synthetic proxy study advance to body-part/obstacle relations
+on the local G1 reference corpus without silently changing coordinate frames,
+collision-label semantics, or SONIC reference timing?
+
+Use all 120 clips and all 240 original scene assignments in the immutable local
+`m2s-hindsight-dataset-v1-20260911` snapshot. These are Kimodo-generated reference
+motions, not verified MTC acquisitions or measured robot execution. Preserve
+train/dev labels and source ancestry. This is development qualification, not a
+fresh held-out method comparison. Deduplicate motion/candidate pairs across scene
+assignments and report both denominators. Do not modify the source or neighboring
+SONIC repository.
+
+## Geometry checks
+
+1. Verify every recorded USD layer hash. Independently enumerate enabled collision
+   shapes and rigid-body owners from the composed asset. Verify primitive dimensions,
+   local transforms, mesh vertex hashes and enclosing-sphere coverage against the
+   recorded 45-shape table. Unsupported geometry fails closed.
+2. Reconstruct the 29-joint articulated transform tree from USD joint frames, axes
+   and named angles. Compare all reference frames with saved MJCF body poses.
+   Report maximum position and rotation discrepancy; the predeclared agreement
+   thresholds are 1e-5 m and 1e-5 rad. Geometry labels use the USD tree itself, so an
+   agreement failure must remain visible and must not be hidden by this choice.
+3. For the selected static obstacles, calculate exact capsule/OBB or capsule/sphere
+   separation at each reference frame. Mesh spheres are OUTER bounds: overlap is
+   unknown, never a mesh-collision witness. Actual primitive overlap can witness
+   overlap in this authored collision model. Negative values are not penetration
+   depths. Floor, self-collision, contact offsets and controller tracking are outside
+   this label. Authored mesh/hull geometry is not necessarily the PhysX cooked shape.
+4. Add a conservative between-frame bound for a specifically defined reference
+   path: linear root translation and named joint angles, shortest-arc root SLERP.
+   For shape s, bound its displacement per unit interval by root translation plus
+   each ancestor's absolute angle change times a chain-length lever-arm bound.
+   Subtract half that bound from the smaller endpoint clearance. Positive clearance
+   above 0.02 m qualifies this modeled continuous path; negative bounds without an
+   actual primitive witness remain unknown. Use 1e-8 m numerical tolerance.
+5. Retain per-frame body/obstacle relations and interval lower bounds, including
+   the minimum-clearance time and body owner. Near-boundary events are candidate
+   supervision, not established peaks of learning information.
+
+## Reference interface checks
+
+Read and hash the local SONIC source implementing named MuJoCo joint order,
+IsaacLab reorder, planner payload and reference packing. Export an explicitly
+typed offline reference derivative: preserve original 30 Hz qpos, resample to
+50 Hz only inside its original support using linear XYZ/joints and SLERP, and
+retain source-clock coordinates. Never extend endpoints to make a full chunk.
+Check source-name permutations and round-trip preservation; compare against the
+actual native helpers where importable. A reference is not a latent token or
+executed action. No encoder checkpoint, measured proprioception or physical
+success is inferred. Do not fabricate a measured anchor for the 640D encoder input.
+
+## Decision and accounting
+
+Proceed toward relation pretraining only for qualified label types. Report failures,
+unknown labels, source joint-limit violations, changes caused by interpolation,
+version/hash receipts, all attempts, runtime and tests. Do not train a policy or
+launch simulation/hardware in this gate. A pass permits offline geometric learning;
+it does not admit teacher actions or prove goal-conditioned navigation.

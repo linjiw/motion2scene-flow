@@ -1,0 +1,21 @@
+# Numerical implementation correction, before checker rerun
+
+The first checker run (`artifacts/fm-checker-v1`) completed all 72 records, but
+the independent report audit failed before publishing a report. Direct point/AABB
+arithmetic disagreed with saved point margins by up to 5.98057621e-8 m in the first
+checked block. `box_sdf` had constructed box centers/half-extents in the boxes'
+stored float32 dtype; the exact continuous segment checker promotes bounds to
+float64 before geometry. The audit tolerance remains 1e-12 m.
+
+Correct the new PointOracle adapter to promote points, radii and box endpoints to
+float64 BEFORE center/half-extent arithmetic. This fulfills the original same-path,
+same-geometry contract; it does not alter source box coordinates, the continuous
+motion, FM model, generated candidate bank, random noise, budgets, threshold,
+selection rule, bootstrap or cohort. Add a float32-storage regression test using
+nonrepresentable decimal box endpoints. Do not weaken the audit tolerance.
+
+Retain the first run, all original predictions/times and its source snapshot.
+Reuse the exact hash-bound prepared candidates, rerun ALL checker arms (including
+exact for matched timing), and store the corrected run in
+`artifacts/fm-checker-v1-final`. Report both the correction and any changed
+decisions. First-attempt results are not the certified final result.

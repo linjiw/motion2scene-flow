@@ -1,0 +1,167 @@
+# 临界事件采样与身体关系 attention：完成结果
+
+本轮实际完成 **27,000 对 G1 参考动作—候选障碍物的标签重建，以及 18 次关系模型训练**。
+结果不支持把本次“边界附近高频采样”直接接入 FM：它增加了接受样本中的 primitive
+碰撞见证比例。简单的低净空采样有小幅改善；同样读取帧数的直接几何计算仍明显更强。
+
+这是完整参考几何下的关系学习实验。没有导航观测输入、FM 新训练、原生 SONIC token、
+motor 执行或机器人任务成功结果。
+
+## 数据与标签：已经完成的改进
+
+输入仍是 Kimodo 生成的本地 G1 参考动作，不是已验证的 MTC 实测数据。本轮使用每段
+全部 225 个原始候选障碍物，包含先前被净空筛选排除的候选。
+
+| 原始划分 | 动作段 / 来源组 | 连续净空通过 | primitive 碰撞见证 | 未知 | 总候选对 |
+|---|---:|---:|---:|---:|---:|
+| train | 100 / 11 | 9,554 | 12,470 | 476 | 22,500 |
+| development | 20 / 18 | 1,792 | 2,596 | 112 | 4,500 |
+| 总计 | 120 / 29 | **11,346** | **15,066** | **588** | **27,000** |
+
+“通过”仍指 authored collision geometry 在指定参考插值路径上的净空超过 2 cm，
+不是可执行或物理成功。“见证”来自实际 primitive 子集；mesh 外包围球重叠不作负标签。
+未知帧不进入二分类训练损失，未知候选对保留在评估中单列。
+
+对 1,257 个源帧清晰但帧间下界未通过的候选对，实施最多 8 层区间二分，共增加
+24,567 次姿态—障碍物查询。每次仍使用运动上界证明子区间净空，不靠密集采样直接升级。
+其中 1,251 对取得连续通过证明，6 对仍未知；另有 582 对因源帧本身没有所需净空证据而未知。
+
+**上轮原有 240 个场景现在全部通过这个几何门限。** 原先 71 个未知场景来自较松的运动上界，
+并非发现了碰撞。旧审计原样保留，新证据见
+[original_scenes.json](../artifacts/native-event-v1-data/original_scenes.json)。93/120 段源动作
+有关节越界的事实没有改变，也没有新增执行监督。
+
+## 公平对照如何实现
+
+训练数据中 90/100 段属于同一个数据集定义的来源组，因此采用“均匀选来源组，再选动作段、
+障碍物”的安排。保留原始来源隔离，不将 90 段当成 90 个独立来源。
+
+每个 seed 下，各方法共享同一组“来源组—动作—障碍物—正负类别”安排，只改变类内帧选择。
+当一对有两类可用源帧时均匀选择类别；只有一类时使用该类。因此整体并非强制 50:50，
+但比较方法之间的类别安排完全相同，且逐条重新核验。
+
+三种采样策略：
+
+- **均匀**：在选定类别的有效帧中均匀采样。
+- **低净空**：一半均匀，一半在该类别净空最低的四分位帧中采样。
+- **边界**：一半均匀，一半偏向正样本离 2 cm 阈值不超过 2 cm、或负样本 primitive
+  余量距零不超过 2 cm 的帧；没有该类边界帧时回退到均匀。
+
+边界帧实际训练占比从均匀策略的 **3.62% 升至 24.27%**，干预确实生效。
+低净空策略对应 2.89%；它和“接近分类边界”不是同一种采样。
+
+三种采样分别配均匀 pooling / attention pooling，各 3 个 seed，共 18 次训练。
+每个模型 3,650 个名义参数、32 维聚合表示、600 次更新、38,400 个帧监督样本。
+均匀 pooling 禁用 attention score 的作用，名义参数表保持一致。
+训练全部在 CPU 上完成，未使用已被占用的 GPU。
+
+模型每帧读取 45 个身体形状，每个 token 12 个几何量：障碍物坐标中的胶囊端点、半径、
+障碍物尺寸、sphere 标记和 primitive 标记。**不输入净空、标签、候选编号或来源身份。**
+所有模型在评估时统一读取 16 个均匀源帧，共 720 个身体 token；对整段取最低预测通过概率。
+直接几何对照也只使用这 16 帧。
+
+全部事件分数与标签预先为所有方法计算。这是相同神经读取量的训练采样对照，
+不是较低标签获取成本的证明，也不是部署时可直接使用的事件检测器。
+
+## 实际学习结果
+
+每次评估在 4,500 个 development 候选对中按分数接受最高的 30%，即 **1,350 对**。
+下表为三个 seed 的比例均值；重复 seed 不是新增独立候选对。
+
+| pooling | 训练采样 | 接受中有碰撞见证 | 接受中未知 | 接受中已证几何通过 |
+|---|---|---:|---:|---:|
+| 均匀 | 均匀 | 7.21% | 2.15% | 90.64% |
+| 均匀 | 低净空 | 6.47% | 1.98% | 91.56% |
+| 均匀 | 边界 | 8.91% | 1.83% | 89.26% |
+| attention | 均匀 | **7.06%** | 2.12% | 90.81% |
+| attention | 低净空 | **6.32%** | 1.90% | 91.78% |
+| attention | 边界 | **8.89%** | 1.73% | 89.38% |
+| 直接几何，同 16 帧 | 不训练 | **0.074%（1/1,350）** | **0.370%（5/1,350）** | **99.56%** |
+
+碰撞见证比例不等于完整的“不安全率”，因为未知候选中可能还有未证实碰撞。
+因此同时报告未知和已证通过，不能把未知当成安全来改善数字。
+
+在 attention pooling 下：
+
+- 边界采样相对均匀采样，见证接受比例 **增加 1.827 个百分点**；按 18 个 development
+  来源组配对 bootstrap 的描述性 95% 区间为 **[+1.229, +2.398]** 个百分点。
+  未知接受下降 0.395 个百分点，仍不足以抵消已证碰撞接受的增加。
+- 低净空采样相对均匀采样，见证接受比例 **减少 0.741 个百分点**，区间
+  **[−1.250, −0.307]** 个百分点。
+- 同为均匀采样，attention 相对均匀 pooling 的差值仅 **−0.148 个百分点**，区间
+  **[−0.309, +0.018]**；本轮没有建立 attention 的稳定优势。
+
+区间保留固定全体排序选择，配对重采样来源组并平均已训练 seed。它们条件于这三个模型和
+这批数据，不包含重新采集训练来源、重新拟合或新 seed 的全部不确定性。
+development 曾用于数据审计，不能称为全新盲测。所有模型均使用预定最终权重，没有挑最好 seed。
+
+![采样和聚合结果](../artifacts/native-event-v1/event_sampling.png)
+
+## 一个与“关键瞬间”直接有关的诊断
+
+事后检查直接几何对照唯一接受的碰撞见证候选，定位到参考 **00623 / obstacle 52**。
+重新从 USD 关节树计算原始参考，确认 torso primitive 在第 211 帧、约 **7.033 s** 出现重叠。
+共有 5 个源帧带重叠见证；16 帧均匀读取一个也没读到，最近读取时刻相距 0.267 s。
+所读帧的最小外包围净空仍有 0.182 m，因而被高分接受。
+
+![短暂见证被时间读取遗漏](../artifacts/native-event-v1/missed-event-00623-52.png)
+
+这支持“时间读取需要保留短暂约束事件”这个具体问题，但**不支持**本轮采用的
+“在训练时提高边界帧比例就能解决整段判断”这个方法。前者是读取位置和覆盖范围，
+后者是训练样本分布；本轮没有把两者混为同一个增益。
+图中负代理余量不是真实穿透深度。诊断没有改变标签或增加训练。
+
+## 对后续 flow matching 的决定
+
+本轮关系编码器和分类头联合训练；尚未冻结编码器并验证独立下游任务的迁移。
+因此暂不把 boundary sampler 或当前 attention reader 宣称为更好的 FM 条件编码器。
+低净空采样可保留为比较项，但它仍远弱于已知完整几何时的解析对照。
+
+下一步应优先验证两个可区分的机制：
+
+1. **约束的聚合目标。** 当前逐帧 BCE 加 soft pooling 是否丢失了“任何一个身体部位、
+   任何一个时刻违反约束就失败”的结构？在相同输入下比较逐部位余量监督、显式 minimum
+   聚合和当前 pooled classifier，保留直接几何基线。不能仅增加 attention 层数解释本轮退化。
+2. **推理时的时间分配。** 保持总读取预算，用粗读和局部运动上界分配余下查询，
+   与均匀 16 帧比较；完整轨迹标签只能用于评估，不能无成本地用 oracle 最小净空选择输入。
+
+通过这些比较后，再让候选 motion chunk 的解码几何查询场景局部信息，作为 FM 的条件或
+候选过滤依据。完整观测/目标定义、原生 motor token 接口和执行验证仍需另行完成。
+“边界点具有最高学习信息量”继续是待检验假设；这次否定的是一个明确的采样实现。
+
+## 产物与复现
+
+预先写下的 [协议](NATIVE_EVENT_V1_PROTOCOL.md) 和
+[固定配置](../configs/native_event_v1.json) 包含预算、标签语义和分析规则。
+
+- [数据统计](../artifacts/native-event-v1-data/summary.json)、[细分记录](../artifacts/native-event-v1-data/refinements.json)
+- [完整模型结果与配对区间](../artifacts/native-event-v1/summary.json)
+- [逐 run 记录](../artifacts/native-event-v1/runs.json)、[英文结果表](../artifacts/native-event-v1/REPORT.md)
+- [时间遗漏诊断](../artifacts/native-event-v1/temporal_diagnostic.json)
+- 模型权重、预测、共享采样安排、源码快照和哈希收据均在 `artifacts/native-event-v1/`。
+
+```bash
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_events --config configs/native_event_v1.json \
+  --output artifacts/new-native-event-data
+
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_event_learning --config configs/native_event_v1.json \
+  --dataset artifacts/new-native-event-data --output artifacts/new-native-event
+
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_event_report \
+  --dataset artifacts/new-native-event-data --run artifacts/new-native-event
+
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_event_diagnostic \
+  --dataset artifacts/new-native-event-data --run artifacts/new-native-event
+```
+
+标签重建耗时约 170.43 s；18 次拟合合计 10,800 次 optimizer 更新，所有尝试保留，
+无追加调参拟合。全部逐 run 指标重新计算一致，所有采样方法的共享类别安排逐条核验。
+49 个测试通过（本轮新增 7 个）；Ruff 通过。

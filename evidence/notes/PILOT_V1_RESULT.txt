@@ -1,0 +1,63 @@
+First representation experiment — completed 2026-09-19
+
+The added relation-supervision gradient did not reduce the primary fixed-threshold
+false-safe rate in this pilot. It retained more safe candidates, but also accepted
+more unsafe ones. This is a useful negative result for the proposed starting recipe.
+
+Scope: 432 procedural box scenes grouped into 144 base families, with 288/72/72
+train/validation/test scenes. Each scene uses the same 12 whole-body sphere-proxy
+candidates. The test set has 864 scene/candidate pairs: 359 meet a 20 mm clearance
+margin and 505 do not. Three nearby geometry variants stay in one family/split.
+Labels check linearly swept spheres continuously between knots, not just frames.
+No actual human/robot trajectories are used in this training experiment.
+
+Each scene representation contains 32 float32 scalars. Baseline and treatment use
+the same networks, initialization, data batches, labels and optimizer steps. The
+only pretraining intervention is whether relation loss propagates into the scene
+encoder. Frozen encoders are evaluated through freshly initialized common probes.
+Three seeds, two trained arms and one random-encoder control completed 7,800 total
+optimizer updates. Model selection used the declared final update, never test loss.
+
+| Method | False-safe rate ↓ | Safe-candidate recall ↑ | Clearance MAE ↓ |
+|---|---:|---:|---:|
+| Random encoder | 21.78 ± 7.56% | 71.59 ± 6.59% | 77.65 ± 1.29 mm |
+| Reconstruction encoder | 10.96 ± 4.77% | 77.44 ± 7.20% | 60.52 ± 1.94 mm |
+| Reconstruction + relation gradient | 14.98 ± 2.31% | 84.22 ± 1.16% | 59.02 ± 2.39 mm |
+
+Values are mean ± sample SD over three fitted seeds. False-safe rate is unsafe
+candidates predicted safe divided by all true unsafe candidates. It includes
+collision and insufficient margin; it is not a measured robot collision rate.
+The relation arm had higher false-safe rates in all three paired seeds. Its mean
+unsafe fraction among accepted candidates was 19.96%, versus 16.18% for reconstruction.
+Its safe selection on feasible scenes was 43.33%, versus 53.33% for reconstruction.
+
+The seed-averaged **family-macro** false-safe difference was +5.81 percentage points,
+with a paired family-bootstrap 95% interval [+2.54, +9.20]. This has a different
+weighting from the pooled-candidate rates in the table. It conditions on these
+fitted models and resamples 23 test families with unsafe candidates; it does not
+estimate uncertainty across new acquisition corpora or a population of training seeds.
+
+Validation-only threshold calibration produced zero observed test unsafe accepts
+for both trained arms, at the cost of retaining only about 12.63% (reconstruction)
+and 17.64% (relation) of safe candidates. This is a small, conditional observation,
+not a safety guarantee. Random controls abstained completely after calibration.
+It does not reverse the primary fixed-threshold result or establish useful navigation.
+
+A post-result bias diagnostic was saved separately. It examines optimistic distance
+errors on unsafe candidates without retraining or changing test thresholds. The
+results are consistent with a safety/recall tradeoff; they do not isolate whether
+the remaining limitation is compression, the finite-capacity probe, optimization,
+or the continuous regression objective.
+
+Next discriminating experiment: retain this completed pilot and use a separately
+declared experiment to compare boundary classification/uncertainty with a stronger
+uncompressed readout and matched coverage. In parallel, qualify real body geometry
+from the locally available reference corpus. Only then connect a flow-matching
+motion generator and evaluate full execution. Do not scale this recipe on the
+assumption that relation supervision has already improved safety.
+
+Reproducibility: `artifacts/pilot-v1/receipt.json`, per-run metrics and predictions,
+`source_snapshot/`, `summary.json`, `REPORT.md`, `comparison.png` and `comparison.pdf`.
+The dataset manifest lives in `artifacts/pilot-v1-data/manifest.json`. The exact
+training source was hash-verified and archived before subsequent formatting edits.
+The tiny smoke run is preserved separately and is not a learning result.

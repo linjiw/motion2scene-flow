@@ -1,0 +1,113 @@
+# Body constraint aggregation and budgeted time queries v1
+
+Written before the new labels, fits and query evaluations. This is a fixed
+development follow-up on the already inspected corpus, not a fresh test claim.
+It does not train FM, encode native motor tokens, or execute a controller.
+
+## Two separate questions
+
+A. Does retaining per-shape predictions and taking their minimum improve over the
+previous pooled frame classifier? Separate minimum aggregation with the same frame
+labels from additional per-shape supervision. B. At 16 geometry frame queries per
+candidate, does motion-bound-guided querying retain short constraint events better
+than uniform time reads or endpoint-clearance-only refinement?
+
+Do not combine B's analytic geometric guidance with A's neural scores and attribute
+the resulting gain to the learned representation. Inputs are complete authored
+geometry and a supplied reference candidate, not causal robot observations.
+
+## Population and inherited evidence
+
+Reuse the frozen 120-reference / 27,000-obstacle-pair event dataset and its typed
+continuous-clear / primitive-witness / unknown labels. Preserve its train (100 clips,
+11 groups) and development (20 clips, 18 groups) assignments. This development
+population has already informed the next question; no blind-test claim. Preserve
+source joint-limit flags, no execution labels, and floor/self-collision exclusions.
+
+A uses exactly the saved uniform-sampler training schedules for seeds 0,1,2:
+38,400 frame-obstacle contexts each, with identical group/clip/obstacle/class/frame
+indices. Reuse all six upstream uniform-sampler uniform/attention-pooling fits,
+including exact frozen predictions; do not retrain or count them as new fits.
+No checkpoint, seed or hyperparameter selection based on the new development results.
+
+## A: body aggregation and supervision
+
+Three new arms, three seeds each, 600 AdamW updates, batch 64, width 32, lr .001.
+Same 45 × 12 input token features and source-frame schedules as the previous fits.
+The new network has the same embed, score, value and head layer dimensions as the
+old 3,650-parameter network, but applies its head to each shape before a minimum:
+`shape_output = head(value(embed(x))) + score(embed(x))`.
+
+- `min_frame_bce`: min(shape logits), trained with the same frame BCE labels.
+  This is a change of factorization/aggregation, not an isolated softmax replacement.
+- `min_shape_bce`: same network, per-shape BCE. Positive if that outer shape has
+  clearance > .02 + tolerance; negative only if it is an actual primitive with
+  overlap < −tolerance; otherwise masked unknown. Average available positive and
+  negative shape-class losses equally inside each frame, then average frames.
+- `min_shape_distance`: same network, predicts each enclosing capsule's geometric
+  margin, using SmoothL1 on margins clipped to [−.2,.5] m and divided by .25 m;
+  beta .1 in normalized units. Includes mesh proxy margins as geometric targets,
+  not fabricated physical collision labels. Output score is min predicted margin.
+
+These last two arms have up to 45 supervision values/context instead of one, with
+explicitly reported preprocessing and label counts. Nominal parameter counts and
+frame reads match, but information retained and effective gradients differ. No
+claim of identical compressed capacity or equal label-acquisition cost follows.
+Generate float64 shape labels from audited USD FK, never silently use float32
+feature geometry as certification ground truth. Cache labels on the saved schedule.
+
+Evaluate all learned arms on the same 16 uniform source frames per development
+pair; take minimum frame score. Binary threshold is .5 for sigmoid/BCE arms and
+.02 m for distance. Primary comparison remains ranking at 30% acceptance (1,350
+of 4,500), with witness/unknown/certified-positive accepts separately reported.
+Compare each new arm to frozen attention/uniform-sampling, plus per-shape arms
+to min/frame BCE. Keep frozen uniform-pooling and analytic geometry controls.
+
+## B: geometry queries without unseen-clearance access
+
+Each query reads all 45 shape margins at ONE source frame; exactly 16 distinct
+frames per candidate for every method (720 shape queries). All candidates complete
+the budget even if a witness is found early, for direct resource comparison.
+
+- Uniform: 16 evenly spaced source frames, reproducing the old geometry comparator.
+- Endpoint: 8 evenly spaced frames, then repeatedly bisect the interval with the
+  smallest observed endpoint outer margin. Use time-index midpoint.
+- Motion-bound: same 8 starting frames. For shape s on interval [l,r], obtain a
+  scene-independent motion-variation bound `B_s(l,r)` by summing the already
+  defined per-source-interval root/joint lever-arm bounds. Score the interval by
+  `min_s((d_s(l)+d_s(r)-B_s(l,r))/2)`. Query the interior source frame nearest half
+  the accumulated motion bound of the worst-scoring shape. Stable leftmost ties.
+
+The full reference qpos and its scene-independent bounds are available to all B
+methods; their preprocessing/storage cost is recorded. This is extra motion
+processing, not a free claim of sensor/computation efficiency. Endpoint-to-endpoint
+joint displacement is NOT used as a substitute for full path variation: a joint
+can leave and return to its initial angle inside a long interval.
+
+The query oracle computes clearance only for requested indices. The selector
+receives no ground-truth pair label, unqueried frame clearance, or full-corpus
+event score. Save every chosen frame and margin; test strict budget and hidden
+data independence. New query frames are restricted to original timestamps.
+
+Evaluate ranked acceptance using min sampled outer margin for all three methods,
+so the ranking formula itself is held fixed. Separately report witness-detection
+recall and continuous certificates from all remaining intervals using the above
+lower bound. Uncertified is not collision. Learned errors are not valid Lipschitz
+certificates; B uses analytic queried geometry only. Check endpoint changes against
+motion bounds within numerical tolerance and fail rather than invent a certificate.
+The previously identified 00623/cell52 case is a disclosed regression example, not
+an independent test or an algorithm-tuning target.
+
+## Analysis and decision
+
+Keep all seeds/results, original labels and original audits immutable. Bootstrap
+the same 18 development source groups with paired fixed selection masks; average
+paired learned seeds. Report descriptive 95% intervals conditional on the trained
+models and fixed dataset, including unknown-accept differences. For B also report
+paired witness captures/losses across all known witness pairs and certificate
+coverage, not only the already known failure case.
+
+Use CPU/two threads, no shared-environment modification, no GPU jobs, no robot or
+physics runs. Additional label creation, query preparation and testing are real
+costs; reused fits are separate. A supported component becomes a candidate for
+future FM conditioning/filtering, not a validated navigation or token predictor.

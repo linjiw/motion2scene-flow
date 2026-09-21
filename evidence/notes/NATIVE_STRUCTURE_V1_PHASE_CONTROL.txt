@@ -1,0 +1,14 @@
+# Timing-grid control addendum
+
+Added after launching the main registered run, before inspecting any output from
+that run (including temporal outcomes). Motivation is structural: the uniform-16
+grid is not nested in the adaptive arms' uniform-8 starting grid. A gain can arise
+from grid phase, without using observed margins or motion bounds.
+
+Add one separately archived, nonlearned comparator: start at the exact same eight
+coarse indices, then repeatedly bisect the widest remaining source-index interval,
+with leftmost ties, until 16 distinct frames have been queried. This selection does
+not read clearance or labels. Apply the same scores, certificates and metrics.
+Preserve the original run, config, nine fits and all three original query methods.
+No model selection or refitting. Report this addendum and the fourth arm separately
+in acquisition accounting; it is not silently presented as part of the first protocol.

@@ -1,0 +1,79 @@
+Spatial readout v3 and conditional proxy-flow v0 — before results
+
+Both stages are exploratory continuations. Preserve earlier runs. No robot dynamics,
+MTC training, sensory occlusion, native SONIC tokens or new method novelty is claimed.
+
+Stage A: spatial reading. Keep v1 training/validation and frozen reconstruction
+encoders, draw 48 fresh test families with seed 20260921. No old test geometry is
+used. For each swept sphere segment, sample 17 positions and expose the same 8
+surrounding grid vertices per position: 136 scalar SDF reads, before deduplication.
+Learned tokens contain SDF, vertex displacement from the segment midpoint, and
+sample time along the segment. Query context contains endpoints, radius and the
+physical segment index. The 1,400-scalar privileged grid remains available for
+indexed access: this is not a 32-scalar-only compression comparison.
+
+Compare uniform pooling and dot-product attention with the same token/value/query
+networks, 32-dimensional features, head, initialization, updates and sampled labels.
+The uniform arm computes the same logits but gives them zero weight; the unused
+key/query gradient is a consequence of removing learned weighting, not a parameter
+budget gain. Attention without XYZ offsets is a separately trained ablation.
+Mean pooling is a fixed spatial-sample aggregation baseline, not trilinear
+interpolation. The deterministic trilinear 17-point readout is a separate reference.
+There is no deterministic clearance residual bypass in the learned arms.
+
+Train 1,000 steps per arm/seed, 12 scenes x 32 queries, MSE on normalized clipped
+clearance, half uniform and half near boundary as before. Test 3 seeds. Compare at
+10/20/30/40/50% ranked candidate coverage; primary unsafe/accepted at 30%. Report
+fixed 20 mm prediction threshold results as well. Retest the archived v2 global
+reconstruction/MSE readout on the fresh test set. Primary planned contrasts:
+attention minus uniform; no-XYZ attention minus attention; uniform minus archived
+global. Paired family bootstrap, 2,000 draws, rerank each sample, fixed fitted seeds;
+unadjusted exploratory intervals. No test-driven model/step selection.
+
+Use validation results ONLY to choose a conditioning reader for stage B: among
+uniform and attention, select the arm with lower seed-mean risk at 30% coverage,
+tie broken toward uniform, provided risk <=5%. Otherwise use the deterministic
+local-grid reference. No-XYZ is diagnostic, not a selection candidate. Record this
+choice and qualification source before stage B training. Passing this ranking gate
+does not qualify a reader as a deployable safety filter.
+
+Stage B: minimal conditional flow-matching experiment. Draw another 48 fresh test
+families with seed 20260922, keeping v1 train/validation. Construct one scene-
+independent bank of 96 motion parameters: the original 12 plus uniform continuous
+samples with seed 262209. Parameter ranges: crouch [0,.45] m, yaw [0,1.57] rad,
+lateral shift [-.25,.25] m. Decode with the existing proxy body profile and 21 knots.
+These are three continuous trajectory controls, not full joint trajectories or
+arbitrary discrete token IDs. Navigation goal and traversal direction are fixed.
+
+Label the pool with analytic swept-sphere/AABB geometry. For training, sample a
+feasible training scene uniformly, then a geometrically valid pool motion uniformly.
+Report excluded training scenes; do not train on test labels. The pool is an oracle
+geometric demonstration construction, not human data or measured executed behavior.
+The parameter pool is shared across splits, so novel motion/skill transfer is not
+established. At inference, flow samples are continuous, not selected pool IDs.
+
+Scale parameter domains to [-1,1], use epsilon ~ N(0,I), uniform transport time t,
+x_t=(1-t)epsilon+t*x_1, squared velocity loss against x_1-epsilon. Identical 128-wide
+MLPs and seeds compare frozen 32-dimensional global context versus that context
+plus 12 local compatibility scores for the fixed anchor motions. In the global arm
+the extra 12 inputs are zero; both arms have the same architecture. The local arm
+has additional geometric access, which must be disclosed. Anchor queries are the
+same during training/inference, avoiding clean-future-based feature selection.
+This is fixed-anchor conditioning, not noisy-trajectory attention or a tested motion
+codec. 2,000 Adam updates, batch128, lr .001, final checkpoint; 16-step Euler ODE.
+
+Generate 32 candidates per scene for each method. Reject out-of-domain generated
+controls; do not clip them into the feasible domain. Report domain violations,
+pre-filter geometric validity and the fraction of scenes with at least one valid
+candidate. Select the lowest-cost valid candidate with the same exact geometry
+checker for all methods. Cost is crouch + .1*yaw + .05*abs(shift). All methods have
+32 candidate checks. References: first32 pool motions (retrieval) and uniform32
+continuous motions. Record mean selected cost and selection count, not cost alone.
+The reference-pool feasible scene count is a finite-pool diagnostic, not proof that
+all other scenes are infeasible. An accepted candidate being safe by its oracle
+filter is not a learned safety result. No additional test-based tuning or retries.
+
+Interpretation: learned attention must earn its complexity over fixed aggregation
+and deterministic interpolation. Flow must improve candidate coverage/quality over
+retrieval and uniform sampling to motivate scaling. A negative result narrows the
+next question; do not manufacture an attention or FM gain by changing test choices.

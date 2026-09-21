@@ -1,0 +1,91 @@
+Spatial readout and flow-matching integration — original experiment design
+
+Update 2026-09-19: the synthetic local-reader comparison and a three-control
+conditional FM prototype have now been executed. See SPATIAL_FLOW_RESULT_zh.md
+for measured findings and limits. The full-motion/SONIC stages below remain plans.
+
+The v2 result changes the next implementation priority. On its fresh proxy test set,
+direct local interpolation of the available grid greatly outperformed global MLP
+readouts at matched coverage. The next falsifiable hypothesis is that preserving
+explicit motion-relative spatial access improves compatibility estimation at a
+declared information/read budget. This does not establish a new attention method.
+
+First compare three readouts on a newly reserved test corpus:
+
+1. Existing global MLP and deterministic local-grid reference.
+2. Learned local readout with fixed trilinear queries along each swept body segment.
+3. Learned local attention over the same available spatial samples, with position,
+   radius and physical segment time supplied explicitly.
+
+Within the two learned local arms, match available samples, feature dimension,
+training examples and approximate compute. Removing relative coordinates or
+shuffling spatial associations is an informative control. Report the extra local
+access separately from the 32-scalar global context: a raw-grid bypass is not an
+equal-capacity compressed representation. Measure latent storage and bytes queried
+per planning step, not just the count of learned tokens.
+
+Use ordinary near-boundary examples plus changed-scene candidate pairs where the
+validity label flips. Continue some uniform sampling; retain the lead-in before
+the minimum-clearance event. Do not label every close pass decision-critical:
+criticality needs evidence that feasible motion alternatives change, or that
+delaying an adjustment changes feasibility. Keep physical time separate from FM
+transport time. Pre-register thresholds, model selection and the next test seed
+before viewing predictions; the v2 test is now development history.
+
+Once that module is informative, use it inside a continuous reference generator:
+
+```
+observed scene + state history + navigation goal
+        -> global context and indexed local geometric features
+noisy continuous reference + FM transport time
+        -> motion queries -> local spatial readout -> velocity field
+        -> decoded reference -> geometric/kinematic checks
+        -> pinned SONIC reference adapter -> measured execution log
+```
+
+For a whitened continuous reference chunk x_1, first use the ordinary conditional
+linear path x_t = (1-t) epsilon + t x_1 and target velocity x_1-epsilon. Model
+positions, continuous rotation coordinates and named joints in an explicit frame;
+decoding must restore valid rotations and joint conventions. Do not interpolate
+arbitrary discrete SONIC token IDs. Native token prediction requires separately
+pinning the encoder/decoder/quantizer and measuring its reconstruction error.
+
+Queries around a noisy motion can be meaningless early in transport. A proposed
+solution to test is coarse goal/corridor access initially and local body queries
+around a predicted clean reference later, using the same computation at training
+and inference. For the linear path, x_t + (1-t) v_theta is an endpoint estimate,
+not an automatically feasible trajectory. If using a previous velocity estimate
+to position local queries, train that self-conditioning procedure explicitly and
+count the additional evaluations. Never use the unknown clean future reference
+to choose local features only during training and silently replace it at inference.
+
+Condition on an already committed motion prefix when required by execution delay;
+apply loss only to uncommitted coordinates. First keep the FM loss uniform and use
+geometry-aware sampling/auxiliary endpoint supervision as separately tested changes.
+Different noise levels and physical event weights should not be bundled into one
+uninterpretable claimed improvement. Geometric checking of the final reference and
+tracker measurements remain separate from noisy intermediate samples.
+
+The minimum data contract before real-motion training is:
+
+| Field | Required interpretation |
+|---|---|
+| Identity/split | source hash, ancestry, scene family; no descendants across splits |
+| Observation | sensor timestamp/frame and visibility mask; privileged scene kept separately |
+| Navigation | goal/route in the same frame; real goal vs hindsight relabel distinguished |
+| Motion reference | qpos, named joints, timestamps, body transforms, units |
+| Geometry | calibrated body shapes and scene transforms; mesh bounds and contact policy |
+| Relation label | clearance bound or witnessed collision; inconclusive overlaps remain unknown |
+| Execution | actual states, commands, tracker/checkpoint version and latency, if measured |
+
+The local 120-clip corpus now passes internal MJCF forward-kinematic checks but
+does not yet satisfy all these conditions. For its enclosing mesh spheres, overlap
+cannot be used as a true collision label. A clear outer envelope can support a
+clearance bound only after geometry/frame verification. Keep the source identity
+as local hindsight references until an actual MTC release is verified.
+
+Compare the eventual FM planner against retrieval plus the same geometric checks
+and tracker. Report candidate generation, post-filter acceptance, task progress,
+latency and execution failures separately. The research question is whether the
+learned generator supplies better feasible options under observation and resource
+constraints, not merely whether a flow objective can be optimized.

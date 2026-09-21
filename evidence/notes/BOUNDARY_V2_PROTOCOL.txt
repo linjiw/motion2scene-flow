@@ -1,0 +1,66 @@
+Boundary/readout diagnostic v2 — specified before training and test predictions
+
+Question: does the first pilot's safety/recall tradeoff persist at matched
+acceptance coverage, and does it change with readout objective or access to the
+uncompressed scene grid? This is an adaptive follow-up to v1, not a confirmatory
+replication or a new flow-matching policy.
+
+Reuse v1 training and validation scenes and its three fitted reconstruction and
+relation encoders. Freeze both encoders. Generate 48 new test scene families
+(144 scenes, seed 20260920) with the unchanged procedural distribution and fixed
+12-candidate bank. Exclude v1 test scenes. New family identifiers are disjoint.
+No test prediction determines model selection, steps, architecture or thresholds.
+The small smoke run uses separate data and does not determine hyperparameters.
+
+Cross three inputs (frozen 32-scalar reconstruction encoder, frozen 32-scalar
+relation encoder, raw 1400-scalar grid) with three readout objectives:
+
+- MSE on clipped normalized segment clearance, as in v1.
+- Binary cross-entropy on whether segment clearance reaches 20 mm.
+- Heteroscedastic Gaussian negative log likelihood for the same clipped clearance.
+  Score each segment by mean minus 1.645 predicted standard deviations, with
+  a 5 mm standard deviation floor. This is a residual-scale heuristic: deterministic
+  labels do not supply aleatoric truth, and it is not epistemic uncertainty or a
+  calibrated 95% guarantee. Clipping and boundary-biased sampling also affect it.
+
+Use identical two-output query MLPs within each input, 128 hidden units, matching
+seeds/initialization and identical sampled training queries. MSE/BCE use the first
+output; Gaussian uses both. All three objectives get the same label information.
+Use 600 updates, final checkpoint, Adam 0.001, 24 scenes x 48 queries per update,
+half uniform and half within 80 mm of the boundary. BCE probabilities are not
+claimed calibrated under this sampling. Candidate score is the minimum segment
+score; minimum logits are ranking scores, not joint candidate probabilities.
+
+Raw-grid access removes the explicit learned 32-scalar bottleneck but increases
+first-layer parameters and computation. It is a diagnostic comparator, not an
+isolated causal estimate of bottleneck capacity or an optimized upper bound.
+Record parameter counts. Keep analytic geometry oracle and deterministic local
+trilinear-grid readout as references, not learned competitors. The latter samples
+17 points per segment, subtracts sphere radius, and has interpolation/sampling
+error; neither reference establishes full robot or dynamics safety.
+
+Primary: unsafe fraction among exactly the top floor(0.30*N) candidate scores.
+Report counts, safe recall, actual collisions and low-cost selection on feasible
+scenes. Secondary fixed coverages: 10%, 20%, 40%, 50%. Stable flattened candidate
+order breaks score ties without using labels. Ranking on test scores is a
+retrospective discrimination diagnostic, not a deployable test-fitted threshold.
+Separately select a 30%-coverage score threshold using validation scores only and
+report actual test coverage and risk. Exact coverage is not promised under shift.
+
+Planned paired contrasts at 30% coverage: raw_grid/mse minus reconstruction/mse;
+reconstruction/bce minus reconstruction/mse; reconstruction/gaussian minus
+reconstruction/mse; relation/mse minus reconstruction/mse; relation/bce minus
+reconstruction/bce. Use 2,000 paired scene-family bootstrap resamples, re-ranking
+within each resample, and average paired risk differences over three fitted seeds.
+Intervals condition on the models/distribution, do not capture acquisition or seed
+population uncertainty, and are not adjusted for multiple exploratory comparisons.
+
+Interpretation: loss-dependent gains weaken the claim that compression alone is
+limiting. Raw-grid gains motivate representation work but retain capacity/optimizer
+confounds. A good local-grid reference with poor learned models indicates available
+geometric information and an inadequate learned readout in this setting. No gain
+does not prove information preservation or impossibility. Preserve all outcomes.
+
+Scope remains privileged box geometry with linearly swept sphere proxies, no
+observational occlusion, real human trajectories, SONIC execution or flow matching.
+Archive config, source, dataset and upstream checkpoint hashes before each run.

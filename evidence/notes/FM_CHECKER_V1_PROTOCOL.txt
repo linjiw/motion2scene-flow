@@ -1,0 +1,131 @@
+# Frozen FM candidate generation with budgeted geometry checking
+
+Written before new scenes, Gaussian draws, FM outputs or checker outcomes. This
+is a local frozen protocol, not external registration. No new training, solver
+selection, checkpoint selection or threshold fitting. A proxy interface test,
+not a new G1 model, SONIC token predictor, MTC experiment or executed navigation.
+
+## Question and strong alternative
+
+With a fixed candidate generator, decoder, candidate count and noise, how much
+valid output is lost when an analytic geometry checker must certify with a
+limited point-query budget? Does motion-bound refinement improve on static time
+refinement/endpoint prioritization, and is either justified compared with exact
+continuous checking of this simple proxy? Preserve the possibility that the
+simple exact checker is both faster and more complete. Checking cannot improve
+the frozen generator's raw valid-candidate rate.
+
+## Frozen model and new population
+
+Use all three final tanh-chart FM checkpoints from bounded-flow-v1, and their
+original frozen reconstruction encoder and validation-selected spatial reader.
+This choice preserves the declared control domain; the previous study did not
+establish tanh's feasibility superiority over terminal clipping. Freeze all
+checkpoint/receipt/config/protocol hashes before generating new data. No training.
+
+Draw 48 new procedural scene families, 3 nearby variants each (144 scenes), seed
+20260927. Retain the existing scene generator, full-geometry grid definition and
+fixed traversal goal. Verify every new scene's box-array hash is disjoint from all
+prior pilot/boundary/spatial/proxy-FM/bounded-FM scenes. Family IDs are local to this
+new dataset; resampling unit is the base family, not individual variants.
+
+For each seed 0/1/2, reuse the 44D conditioning contract. Generate exactly 32
+candidates/scene by Euler16, initial Gaussian seed 56000+seed. No retry, resampling,
+latent repair or output clipping. Save noise, context, ODE endpoints, physical
+controls and model bindings. All checkers see byte-identical generated candidates.
+The three controls are crouch, yaw, lateral displacement; they are not motor tokens.
+
+## Preserve the decoder and physical path
+
+Decode using the existing 21-knot, seven-sphere proxy. Continuous geometry is the
+piecewise-linear sweep between the saved float32 knot centers; it is NOT the
+analytic smooth profile resampled at higher resolution. Retain those exact knots
+in float64 arithmetic and interpolate each of the 20 segments into four pieces,
+giving 81 possible physical-time query indices. Every fourth point equals an
+original knot. Inserted points do not change the swept path or the frozen decoder.
+
+For each sphere, the cumulative center travel along this same polyline bounds
+clearance variation. At a queried point, use unsigned point-to-box-union distance
+minus radius, consistent with the exact swept-sphere check. Scene boxes and sphere
+centers/radii are known oracle geometry. Physical-time queries and the 16 FM ODE
+evaluations are separate budgets, never added as equivalent operations.
+
+## Checks, evidence and baselines
+
+All candidates first pass finite-control/domain checks. A domain failure is
+rejected before scene queries and retained in accounting. No modification of
+generated controls. Exact proxy ground truth is min continuous swept clearance
+over all original 20 segments ×7 spheres. Valid means in-domain and clearance
+>=.02 m; count the .02±1e-8 numerical band separately.
+
+Compare at 8/16/32/64 distinct queries/candidate:
+
+- Uniform certificate: independently uniform grid at each budget, full budget.
+- Static time-gap, endpoint and motion-bound certificates: common initial
+  uniform-eight query, then the same nested selection/interval-bound rules as the
+  prior study. Exhaust 64 queries for diagnostic traces and derive each budget.
+- Uniform sampled-pass diagnostic: reuse uniform points and accept only from
+  sampled minimum >.02+tolerance, without a continuous certificate. Report its
+  actual false accepts and invalid selected motions; do not call it safe.
+- Exact continuous baseline: evaluate all 140 original sphere segments against
+  the box union. This is both an implementable checker and the task's geometric
+  truth; report its measured cost. No claim of an independent physical validator.
+
+Certificate methods accept only when every interval/body lower bound exceeds
+.02+tolerance, reject on an observed overlap <−tolerance, otherwise abstain.
+Below-margin but non-overlapping observations may remain unresolved under this
+inherited stopping rule. Exact checking can resolve insufficient margin directly.
+Enforce all certificate accepts satisfy the continuous oracle; no changes to
+thresholds after seeing outcomes. There are no mesh-approximation unknowns here.
+
+Actually rerun each nested method with early stopping at max64, stopping after
+the first witness/certificate (initial 8 is atomic), else abstain at the cap.
+Assert actual traces/margins/decisions equal the corresponding full-trace prefix.
+This saves real queries, rather than estimating latency from a replay count.
+
+## Output selection and metrics
+
+Check all 32 fixed candidates; choose minimum proxy cost
+crouch+.1*yaw+.05*abs(shift) among accepted candidates, with stable original-index
+ties. If none are accepted, return no candidate. Never replace an invalid sampled
+selection with an oracle-valid one. Report per seed and mean:
+
+- raw valid candidates (same for all checkers), accepted candidates, valid accepted
+  yield/all generated, false accepts/accepted and insufficient-margin vs overlap;
+- scenes with any accepted candidate, scenes with a valid returned candidate,
+  invalid returned candidates, missed scenes relative to the fixed exact bank;
+- witness rejections, domain rejections and unresolved abstentions separately;
+- selected proxy cost on valid returned candidates, with denominator, and paired
+  cost differences on common-success scenes as secondary, non-causal diagnostics;
+- actual query counts, check times, and combined condition/generate/decode/check/
+  select batch time per valid returned scene and per accepted valid candidate.
+
+Charge each physical-time query as seven sphere-to-box-union queries and 49
+sphere/box relations (seven boxes), not one primitive query. Charge exact checking
+as 140 segment-to-union and 980 segment/box relations/candidate; these primitives
+have different complexity, so counts are not interchangeable FLOP costs. Record
+conditioning, model loading, generation, decoding, motion-prefix setup, checking,
+selection and artifact I/O separately. All candidate generation is paid, including
+failed scenes; no conditional-success timing omission. Cost ratios are ratios of
+whole-run costs/counts, not averages of scene-specific ratios. Query preparation
+is charged only to methods needing it; exact bypasses dense interpolation/prefixes.
+
+Model/load and dataset/grid construction are setup costs separately reported.
+The per-batch pipeline includes frozen scene conditioning, FM integration/chart
+decode, 21-knot decoder, required checker prep, actual checking and selection.
+Report single-host CPU/two-thread times descriptively, without real-time claims.
+
+## Analysis and decision
+
+Primary paired family-bootstrap contrasts at budget64: motion-bound minus
+time-gap, endpoint and exact for valid candidate yield and valid returned-scene
+fraction; query-count differences for the nested methods. Average paired fitted
+seed differences first, then resample 48 families, 2,000 draws, seed20260927.
+Intervals condition on trained models and procedural scene population, not seed
+population uncertainty, robot transfer or closed-loop behavior. Keep all budgets.
+
+If certificate yield remains lower than exact or total compute is worse, report
+that boundary directly. A working three-state interface does not establish an FM
+generation improvement or justify learning a checker. Keep the simple exact
+baseline available. Preserve every failed attempt and original upstream artifact;
+changes after protocol freeze must be explained and never overwrite an outcome.

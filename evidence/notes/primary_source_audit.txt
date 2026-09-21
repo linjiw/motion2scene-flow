@@ -1,0 +1,35 @@
+Primary-source research audit — 2026-09-19
+
+Scope: targeted continuation of two user-supplied Motion2Scene notes, not an exhaustive systematic review. Inspected the named paper sections and public code, not datasets, model checkpoints, or reported experiment reproductions. Search-result summaries were used for discovery only; substantive method claims below use author papers or official code. Findings do not establish novelty of the proposed combination.
+
+| Source | Inspected material | Decision supported | Boundary |
+|---|---|---|---|
+| [MTC, 2603.05993v1](https://arxiv.org/html/2603.05993v1) | III scene generation/embodiment scaling, IV dataset/scoring, V limitations | Use paired geometry/motion as the grounding source; retain separate geometric and execution labels | Paper review is not archive validation; no official full-data download verified in this pass |
+| [PASSAGE, 2609.18732v1](https://arxiv.org/html/2609.18732v1) | III planner/tracker/refinement, IV component comparisons, Appendix architecture | Closest numeric-goal scene-conditioned FM system; geometry, chunk continuity and execution feedback are existing components | Uses a perceptive ScaleBFM tracker; cannot transfer its performance to SONIC |
+| [TANGO, 2609.09158v1](https://arxiv.org/html/2609.09158v1) | 3.1–3.4 and appendix deployment/data generation | Closest SONIC system; distinguish generated joint/base references from native token prediction | Reference supervision is filtered by execution; it is not identical to recorded executed joint trajectories |
+| [SONIC, 2511.07820v4](https://arxiv.org/html/2511.07820v4) | Universal representation and controller/planner descriptions | Native controller token and motion-reference representations must be distinguished | Paper architecture alone does not pin a deployment checkpoint |
+| [3D FlowMatch Actor, 2508.11002v1](https://arxiv.org/html/2508.11002v1) | Method and appendix architecture/normalization | Shared physical coordinates and relative 3D action/scene attention; account for perception cost | Manipulation evidence does not establish whole-body traversal feasibility |
+| [TAGA, 2606.05880v1](https://arxiv.org/html/2606.05880v1) | Gaze/terrain-query mechanism | Learned allocation of local geometric attention has direct precedent | Ground/foothold emphasis differs from overhead and side clearance |
+| [LINGO, 2410.03187v1](https://arxiv.org/html/2410.03187v1) | 3.3 dual voxel scene encoder, 3.5 goal conditioning | Current and anticipated local scene context are established ideas | Character synthesis does not validate a robot tracker |
+| [Flow Matching, 2210.02747](https://arxiv.org/abs/2210.02747) | Author abstract and probability-path formulation | Use a declared source, interpolation path and derivative target | FM transport time is distinct from physical action time |
+| [Training-Time RTC, 2512.05964v1](https://arxiv.org/html/2512.05964v1) | IV prefix conditioning and V comparisons | Train with committed action prefixes and delay-aware masking | Demonstrated task results do not establish humanoid traversal results |
+| [ConFlow, 2607.14424v1](https://arxiv.org/html/2607.14424v1) | IV constraint target and conditional GP source, V task setup | Structured temporal source and negative supervision are existing alternatives | Two-robot navigation; source boundary conditioning assumes boundary state availability |
+| [HardFlow, 2511.08425v1](https://arxiv.org/html/2511.08425v1) | Problem formulation and terminal-sample constrained optimization | Distinguish final generated-sample constraints from constraining every noisy iterate | Numerical and modeled-constraint qualifications remain; not a humanoid execution guarantee |
+| [SafeFM, 2504.08661v1](https://arxiv.org/html/2504.08661v1) | Author method/constraint formulation | Barrier-based constrained generation is prior art | Do not transplant modeled safety assumptions to contact dynamics |
+| [UniConFlow, 2506.02955](https://arxiv.org/abs/2506.02955) | Author abstract | Equality/inequality QP-guided generation is another relevant family | Abstract-level triage only; no implementation-level assessment |
+| [CASF, 2602.15567v1](https://arxiv.org/html/2602.15567v1) | Abstract and metric/pullback method | Distance-derived metric shaping is relevant to geometric flow proposals | Streaming-flow execution differs from a denoising ODE over motion chunks |
+| [Perceptive Humanoid Parkour, 2602.15827](https://arxiv.org/abs/2602.15827) | Author abstract and paper method excerpt | Motion matching plus expert training/distillation is a substantive alternative | The proposed same-tracker retrieval baseline is an adaptation, not the published full PHP system |
+| [PhysiFlow, 2603.05410v1](https://arxiv.org/html/2603.05410v1) | Author overview | Latent FM plus tracking is established context | Not treated as evidence for the new compression mechanism |
+
+Official SONIC code was retrieved at repository commit `7f151314d4d1606544bf249d2a7a1cb754c64582` through GitHub's API and raw files. This is a source-code pin, not a tested installation or a checkpoint pin.
+
+| File | What was checked |
+|---|---|
+| [universal_token_modules.py](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/7f151314d4d1606544bf249d2a7a1cb754c64582/gear_sonic/trl/modules/universal_token_modules.py) | `encode` pre/post-quantization outputs; `decode` declared inputs; token-plus-proprioception architecture; config-dependent dimensions |
+| [all_mlp_v1.yaml](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/7f151314d4d1606544bf249d2a7a1cb754c64582/gear_sonic/config/actor_critic/universal_token/all_mlp_v1.yaml) | In this config, 32 coordinates per token and up to 2 tokens; distinguish scalar levels from token count and flattened capacity |
+| [vla_inference.md](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/7f151314d4d1606544bf249d2a7a1cb754c64582/docs/source/tutorials/vla_inference.md) | Documented VLA action format and checkpoint-dependent initial tokens; future reference lookahead is distinct from total delay |
+| [zmq_planner_sender.py](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/7f151314d4d1606544bf249d2a7a1cb754c64582/gear_sonic/utils/teleop/zmq/zmq_planner_sender.py) | Separate command/planner/pose message builders; no wire protocol implementation added locally |
+
+Unresolved before implementation: actual MTC export and scene alignment; sensor/goal modality; allowed contact modes; selected SONIC checkpoint and observation config; robot geometry/collision meshes; hardware latency; available execution data. These are implementation inputs, not reasons to withhold the present research design.
+
+The accompanying proposal's decision-distortion bound, clearance-error budget, delayed-adjustment event test, and experimental hypotheses are original reasoning in this review. Their algebra or conceptual motivation must not be confused with measured learning gains, formal closed-loop guarantees, or a verified first-in-literature claim.

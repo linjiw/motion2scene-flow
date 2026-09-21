@@ -1,0 +1,74 @@
+Bounded proxy flow v1 — protocol before training and new test predictions
+
+Question: can output parameterization fix the observed domain violations while
+retaining geometric feasibility, coverage and candidate diversity? Is finite-step
+integration a sufficient explanation of the Euclidean model's violations?
+
+This adaptive follow-up uses the same v1 training/validation scenes, 96-control pool,
+frozen reconstruction encoder, and validation-selected local attention conditioner.
+The published local-FM checkpoint from proxy-flow-v0 is the frozen Euclidean
+baseline. Draw 48 fresh test families (144 scenes), seed 20260923, excluding prior
+test draws. Generate the identical motion parameter pool with seed262209 and bind
+its content. No test-based model, threshold, transform or solver selection.
+
+Compare frozen Euclidean FM with a newly trained tanh-chart FM. Both receive the
+same 44 conditioning scalars, training scenes/motion IDs, architecture, optimizer
+budget, initialization, and Gaussian/time draws. Only the target coordinates change.
+Euclidean targets are physical controls normalized to [-1,1]. For bounded targets,
+clip normalized demonstration endpoints only to [-1+delta,1-delta], delta=1e-4,
+apply atanh, then center/scale each coordinate using the exact training sampling
+distribution (uniform feasible scene, uniform valid motion within that scene).
+Decoder is tanh(mu+sigma*y), followed by affine conversion to physical controls.
+This bounds finite decoded outputs by construction; it is not learned collision
+safety. Whitening changes the optimization geometry as part of this recipe.
+
+The endpoint inset moves an exact domain endpoint by at most 0.0000225 m of
+crouch, 0.0000785 rad of yaw, or 0.000025 m of lateral displacement (up to float32
+rounding). Recheck inset targets using geometric labels, record all validity flips
+and maximum coordinate changes, and retain the original training selection. If
+flips exist, disclose that some transformed targets no longer meet the old labels;
+do not silently change examples. Preserve representability of interior points.
+
+Include terminal clipping of the frozen Euclidean Euler16 output as a baseline.
+This is a declared, separately evaluated intervention, not a hidden repair of the
+old results. Recompute complete geometry after clipping; parameters in range alone
+do not establish feasibility. Do not apply extra clipping to tanh outputs.
+
+For each fitted seed and both parameterizations, evaluate Euler16, Euler64,
+Euler256, and Heun128 (256 vector-field evaluations). All solvers start from the
+same per-seed Gaussian samples; no retraining for solver changes. Euler16 and
+terminal clipping are the equal-sampling-compute primary comparisons. Higher-step
+conditions diagnose convergence, not equal-latency performance. Treat Heun128 as
+a numerical reference only; it is not an exact ODE solution or error certificate.
+Record endpoint RMS differences in normalized physical controls and changes in
+domain membership against that reference, alongside domain violation rates.
+
+Keep 2,000 Adam updates, batch128, hidden128, lr .001, final checkpoint, three seeds.
+Each method has 32 candidates per scene and the same exact swept-sphere/AABB
+checker and proxy cost: crouch+.1*yaw+.05*abs(shift). Repeat fixed32 retrieval and
+uniform32 sampling on this new test set as contextual baselines. Repeated retrieval
+rows are one deterministic bank, not independent fits.
+
+Primary: fraction of candidates satisfying both parameter-domain and >=20 mm
+clearance constraints. Report scene coverage (at least one valid /32), collision
+and insufficient-margin rejection separately, out-of-domain rates, selected cost
+with selection count, and paired selected costs on jointly successful scenes.
+Report mean pairwise normalized-control distance among valid candidates within
+scenes with >=2 valid candidates, the number of such scenes, near-boundary mass
+(within1% of any physical parameter range) among valid candidates, and minimum
+clearance distributions for valid candidates. These are descriptive diagnostics;
+do not equate parameter diversity with useful task/skill diversity.
+
+Predeclared paired family-bootstrap contrasts: tanh/Euler16 minus
+Euclidean/Euler16; tanh/Euler16 minus clipped/Euclidean16; and Euclidean/Euler256
+minus Euclidean/Euler16. Report differences for raw validity and scene coverage,
+resample 48 scene families with all descendant scenes, average the three fitted
+seed differences, 2,000 draws. Intervals condition on fitted models, are exploratory
+and unadjusted for multiple comparisons; they do not cover acquisition or seed
+population uncertainty. Cost comparisons use paired common-success scenes and
+report denominators; overall cost averages may involve different scenes.
+
+The corpus and models remain a three-control, fixed-goal, oracle-scene sphere proxy.
+No MTC training, human joint generation, partial-observation navigation, balance,
+SONIC execution or real robot safety is established. A favorable bounds result is
+grounds for the next interface experiment, not evidence of full-motion transfer.

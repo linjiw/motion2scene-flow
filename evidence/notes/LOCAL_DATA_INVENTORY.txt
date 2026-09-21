@@ -1,0 +1,71 @@
+Local data inventory — inspected 2026-09-19
+
+The initial workspace held research notes only. A targeted local inspection found
+the earlier `motion2scene`, `motion2scene-training`, and SONIC research checkouts.
+They were read without changing their experiments or running their controllers.
+
+The read-only structural audit inspected all 120 reference NPZs in
+`$WORKSPACE_PARENT/m2s-portability-validation/m2s-hindsight-dataset-v1-20260911`:
+
+| Item | Observed |
+|---|---:|
+| Reference clips | 120 |
+| Original train / development | 100 / 20 |
+| Recorded ancestry groups | 29 |
+| Ancestry groups crossing those splits | 0 |
+| Frames | 25,335 |
+| Sum of timestamp durations | 840.5 seconds |
+| FPS values | 30 |
+| Scene assignments | 240 |
+| Physics runs in these assignment records | 0 |
+| Teacher-eligible references in this catalog | 0 |
+| Missing/nonfinite/nonmonotone reference files | 0 / 0 / 0 |
+
+The available arrays include qpos, timestamps, named joints/bodies, body and geom
+positions/quaternions, and source-to-scene translation. One inspected reference has
+36 qpos coordinates, 29 named joints, 30 bodies and 35 geom centers. Do not treat
+geom centers as complete collision surfaces.
+
+Native collision metadata includes 1 sphere, 26 capsules and 18 mesh entries with
+`outer_mesh_sphere` roles. Those approximations and transforms must be checked
+against the selected robot asset. Structural finiteness and normalized rotations
+do not establish tracking or collision validity. This catalog's qualification does
+not overwrite later repaired/qualified derivatives in the neighboring projects.
+
+These files are local Motion2Scene hindsight references; no evidence identifies them
+as the MTC release. Their source terms and ancestry remain attached. The audit
+receipt at `artifacts/local-reference-audit.json` contains per-file hashes and
+observations. No original files were copied into a public release or altered.
+
+Integration requirements for the next real-motion experiment: choose the intended
+source/derivative; retain ancestry splits; confirm axes, units, timestamps and named
+joint order; align scene geometry and body transforms; check all mesh approximation
+bounds; separate geometry labels from actual execution labels; construct matched
+candidate alternatives. Do not substitute this corpus for MTC without naming the
+source change.
+
+Follow-up kinematic audit, also 2026-09-19: all 120 clips / 25,335 frames were
+recomputed with the bundled MJCF using MuJoCo kinematics. Maximum body-position
+and recorded geom-position errors were both 5.329142797855409e-15 m; maximum
+sign-invariant quaternion chord error was 0. Named body/joint orders matched.
+All 45 recorded collision shapes have owners in the 30-body array. All five
+recorded USD layer hashes matched the files currently present. Evidence and model
+asset hashes are in `artifacts/local-kinematic-audit.json`.
+
+This verifies internal reference/model consistency, not the USD-to-MJCF articulated
+frame mapping or enclosing mesh bounds. USD mesh re-extraction, scene alignment,
+between-frame geometry, support contact and tracking dynamics remain unchecked.
+An enclosing mesh sphere overlapping an obstacle is inconclusive; do not label it
+as a witnessed collision. Separation of the native primitive subset also cannot
+certify clearance of the entire body.
+
+New-source budget follow-up, 2026-09-20: the archived Kimodo route inventory has
+1,000 clips in 129 ancestry groups. Excluding all 29 groups in the prior 120-clip
+corpus leaves 135 available source CSVs in 100 groups. A fixed hash rule selected
+20 groups /20 clips before new geometry evaluation; ID/group/source-hash overlap
+checks pass. The new cohort contains 3,930 source frames and 4,500 unchanged-recipe
+obstacle candidates, with 1,941 continuous-clear labels, 2,450 primitive witnesses
+and 109 unknowns. USD/MJCF frame checks pass; 17 clips retain joint-limit excess.
+This is additional evidence from the same generated corpus, not MTC, new human
+subjects or controller execution. Selection, conversion-failure accounting,
+labels and the full result are in [NATIVE_BUDGET_RESULT_zh.md](NATIVE_BUDGET_RESULT_zh.md).

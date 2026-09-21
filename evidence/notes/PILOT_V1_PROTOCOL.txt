@@ -1,0 +1,54 @@
+Representation pilot v1 — protocol written before results
+
+Question: at equal scene bottleneck capacity, does allowing compatibility-supervision
+gradients into the encoder improve held-out geometric compatibility estimates?
+
+This is an oracle-geometry diagnostic using procedural boxes and fixed swept-sphere
+motion proxies. It is not a human-motion, G1, MTC, perception, FM or closed-loop
+control experiment. The candidate bank is shared across scene splits deliberately;
+only unseen scene-family instances are tested. Shape/template generalization is
+not claimed. The smooth proxy motions are not dynamics-qualified.
+
+The baseline and treatment have identical encoder, decoder, training relation head,
+initialization, batches, optimizer updates and candidate-label access. Both optimize
+scene reconstruction and a relation head. The reconstruction baseline detaches the
+encoder latent for the relation loss; the treatment allows that gradient to update
+the encoder. The encoder remains candidate-independent. A random frozen encoder
+provides a diagnostic control and is not compute-matched pretraining.
+
+After pretraining, discard the relation head, freeze the encoder, and fit an
+identically initialized fresh query head with identical batches and updates. No raw
+scene geometry can bypass the bottleneck. Report scene reconstruction error too.
+The capacity is four 8-dimensional float32 slots (32 scalars); no quantization or
+information-theoretic bitrate claim is made, and this is an MLP baseline, not the
+proposed body-attention architecture.
+
+Primitive geometry is an exact capsule/AABB intersection/separation query for
+linearly swept spheres. Negative distances indicate overlap, not accurate robot
+penetration depth. All three nearby variants of a base scene remain in one split.
+The bank includes crouch and side-turn proxies and a fixed preference cost.
+
+Primary diagnostic: false-safe rate = true unsafe candidates predicted safe divided
+by true unsafe candidates, at a fixed 20 mm predicted/true clearance threshold.
+Also report unsafe fraction among accepted candidates, acceptance coverage,
+true-safe recall, clearance MAE, near-boundary MAE, and selection coverage/safety.
+A model that always abstains is not successful. Report actual collision (<0) and
+insufficient 20 mm margin separately. Raw predictions are primary; a threshold
+chosen ONLY on validation is secondary. Empirical validation risk is not a safety
+guarantee. The all-abstain fallback is explicit if no threshold is admissible.
+
+Use 3 training seeds, one frozen generated corpus, 24 held-out scene families and
+paired scene-family bootstrap differences. This small exploratory pilot estimates
+conditional representation effects; it is not a powered robustness study or
+independent data-acquisition replication. No test-based early stopping or tuning.
+All checkpoints use the declared final update. Preserve failed runs and null results.
+
+Planned compute: 400 pretraining and 600 fresh-probe updates per trained arm/seed,
+600 probe updates for each random control. A tiny plumbing run precedes the pilot;
+its separate random corpus is not the pilot test set. The pilot is bounded and uses
+the existing CUDA environment without modifying it or existing running jobs.
+
+Proceed to real calibrated motion/scene data if the metric pipeline works; add an
+FM planner only after determining whether representation or execution is limiting.
+If this comparison is null, report it and inspect capacity/readout limitations rather
+than silently selecting a favorable seed or changing thresholds on the test set.

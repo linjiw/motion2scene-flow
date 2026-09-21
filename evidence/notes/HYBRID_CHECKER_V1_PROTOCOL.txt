@@ -1,0 +1,96 @@
+# Limited certificates with exact fallback on the frozen FM candidate bank
+
+Written before implementing or running this hybrid study. The source candidate
+bank and its prior checker outcomes have already been inspected. This is a
+development-corpus engineering comparison, not a fresh test or model improvement.
+No training, new data, sampling, learned attention, native robot tokens or execution.
+
+Question: can inexpensive certificates/witnesses avoid enough continuous geometry
+work to reduce total cost while preserving the complete exact acceptance set and
+selected actions? Direct exact checking is the strong baseline. Fewer exact calls
+alone do not establish savings; preprocessing and adaptive scheduling can dominate.
+
+## Frozen inputs and arms
+
+Reuse all 13,824 saved candidates: three frozen models, 144 scenes from 48 families,
+32 candidates per scene. Keep the original 21-knot seven-sphere piecewise-linear
+path, scene boxes, costs, domain mask, 2 cm threshold and 1e-8 certificate tolerance.
+Bind prior receipts, freeze record, current config and this protocol with SHA256.
+Snapshot new code before running. Do not alter any upstream artifacts.
+
+Compare direct exact checking with uniform certificate + exact fallback and
+motion-bound certificate + exact fallback, each at budgets 8/16/32. Uniform reads
+its entire fixed grid atomically. Motion-bound starts at the same uniform eight
+and actually stops at the first continuous certificate or overlap witness, else
+uses its budget. Preserve the inherited rule: reject on an observed overlap,
+accept only on a continuous lower bound > margin+tolerance, otherwise unresolved.
+Do not add a new below-margin early rejection rule in this comparison.
+
+Route only unresolved candidates to the SAME analytic continuous checker as the
+direct baseline, grouped by scene for batched segment computations. Fallback is
+computed afresh on the original segments, never read from archived truth. Resolved
+certificates and witnesses must not invoke it. Domain failures are rejected before
+geometry, without repairing controls or interpolating invalid paths. Empty
+fallback groups perform no exact call.
+
+All arms check every fixed candidate, then choose the lowest declared cost among
+accepted candidates, with original-index tie handling. Require final candidate
+decisions and selected indices to match direct exact checking. Preserve any
+failure; do not correct decisions using audit labels. No candidate resampling.
+
+## Timing and counters
+
+Use CPU/two threads, three measured repetitions per fitted seed. Each seed first
+warms all seven arms once on its first two scenes; warmups are logged separately.
+Randomize arm order within each seed/repetition with seed 20260928 and save the
+schedule before measured calls. Do not run other expensive experiments concurrently.
+Repeat all geometry and path preparation from scratch on each measured invocation.
+
+Time the entire instrumented checker invocation, including mask/array preparation,
+interpolation and cumulative travel (only hybrid), point geometry, certificate and
+priority processing, fallback batching/exact geometry, trace construction and final
+selection. Break out phases, retain unallocated overhead, exclude disk writes and
+subsequent independent auditing. Stored first-repetition traces are audited; other
+repetitions must reproduce their arrays and decisions exactly. No cache of computed
+geometry survives an invocation.
+
+Report measured checker+selection cost and an assembled pipeline cost that adds
+the SAME retained prior conditioning/FM/decoding times to every arm. Generation is
+not rebenchmarked here: label those common costs as reused measurements, not a
+new end-to-end stopwatch or online latency. Include failed scenes and all generated
+candidates. Model loading, dataset construction and file I/O remain separate setup.
+
+Counters: prefilter certificates, observed-overlap rejects, fallback candidates,
+fallback accepts/rejects; actual time-point queries (7 sphere/union queries and
+49 point/box relations each), exact segment/union queries (140 per fallback
+candidate), and segment/box relations. Do not equate point and segment costs.
+
+## Analysis, verification and decision
+
+There are 7 arms ×3 frozen models ×3 timing repetitions =63 records, but only
+13,824 unique generated candidates. Present valid candidate and valid scene yield,
+selected-index equality, unsafe accepts, domain failures and remaining unresolved
+counts. Report fallback shares and actual point queries with family-cluster
+bootstrap intervals: average three models first, resample 48 families 2,000 times.
+These intervals describe this procedural population conditional on the fixed fits;
+they do not make the reused bank a confirmatory test.
+
+For cost, sum each arm's times across fitted seeds within each repetition, divide
+by its summed valid outcomes, and report the mean and min/max of the three batch
+repetitions. Also show paired repetition cost ratios to the direct baseline.
+Three timing repetitions are descriptive, not a population confidence interval.
+Retain every budget; no test-selected winner presented as a new general result.
+
+Independently replay queried margins with direct point/AABB arithmetic, interval
+lower bounds, first stopping times against prior full traces, exact fallback masks
+and values, final decisions and selections. Verify no exact calls on resolved or
+domain-invalid candidates. Unit cases include certified clear, witnessed collision,
+thin-obstacle unresolved collision, insufficient margin without overlap, no fallback,
+all unresolved, invalid domain, and true/false fallback outcomes.
+
+An improvement requires identical outcomes and lower measured full checker cost,
+with the common generation-stage charge included in reported pipeline ratios. If
+all hybrids fail to reduce cost, stop expanding this proxy checker and retain exact
+geometry for generation/representation studies. If an arm improves, preserve it as
+a provisional offline option and keep exact as the reference; new-scene replication
+and native interface qualification remain separate work.

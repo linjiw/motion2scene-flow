@@ -1,0 +1,147 @@
+# G1 参考动作、身体几何与 SONIC 离线接口：已完成结果
+
+本轮把此前的球体代理实验推进到了真实 G1 资产定义和完整关节参考数据，
+完成了几何标签与参考格式转换。**没有新训练 FM，没有生成原生 SONIC latent token，
+没有运行控制器。** 结果支持继续做离线身体—场景关系学习，不支持宣称机器人通过了障碍。
+
+## 数据身份与实验单位
+
+输入是本地 `m2s-hindsight-dataset-v1-20260911`：120 段 Kimodo 生成参考动作，
+25,335 个 30 Hz 源帧，29 个来源组。它不是已核验的 MTC 实测数据，也没有执行动作、
+传感器或任务成功监督。原有 100 train / 20 development 划分保持不变。
+
+240 个既有场景包含 960 条障碍物放置记录，去重后是 600 个“动作—候选障碍物”对。
+这些障碍物原本已经按参考动作的离散帧净空筛选，因此本轮的零碰撞见证不能解释为
+泛化避障成功，更不能作为正负样本均衡的碰撞预测基准。
+
+协议 [NATIVE_REFERENCE_V1_PROTOCOL.md](NATIVE_REFERENCE_V1_PROTOCOL.md) 在此次新审计前
+写入本地；没有外部预注册。所有读写和计算均在离线环境完成，未改动源数据或相邻项目。
+
+## 主要测量
+
+| 检查 | 实际结果 | 支持的结论 |
+|---|---:|---|
+| USD 层文件 | 5/5 哈希一致 | 使用的是原记录资产 |
+| 碰撞形状 | 1 sphere + 26 capsules + 18 meshes | 45 个形状完整对应原表 |
+| 网格包围球 | 1,016,604 个顶点全部被覆盖 | 包围 authored mesh / 顶点凸包；不是 PhysX cooked mesh 校验 |
+| 重提取形状参数 | 最大差异 0 | 尺寸、局部变换、端点、顶点哈希一致 |
+| USD 关节树 vs 已存身体位置 | 最大 5.4821e−7 m | 120/120 段通过预设 1e−5 m 门限 |
+| USD 关节树 vs 身体旋转 | 最大 1.4304e−6 rad | 120/120 段通过预设 1e−5 rad 门限 |
+| 源帧净空超过 2 cm 的动作—障碍物对 | 600/600 | 只针对选中障碍物和这些参考帧 |
+| 加入帧间上界后可确认的对 | 547/600；53 未知 | 未知不能变成碰撞负标签 |
+| 加入帧间上界后可确认的场景 | **169/240；71 未知** | 139/200 train，30/40 development |
+| 源记录有关节越界的动作 | **93/120**，最大 0.34819 rad | 参考几何与可执行动作监督必须分开 |
+| 50 Hz 离线参考导出 | 42,105 帧 | 每段尾部少 1/150 s，没有补齐或延长 |
+
+若同时要求“源记录无关节越界”和“场景连续净空通过”，这里只剩 45 个场景。
+无越界参考本身仅 27 段、6 个来源组；这些仍然没有稳定性、支撑接触或跟踪成功证明。
+因此不能把名义上的 120 段都算成合格的运动模仿监督。
+
+本轮直接求 capsule/旋转盒或 capsule/sphere 距离，并使用 USD 关节树。
+这不是逐数复现旧的胶囊采样净空算法；与旧净空下界最大相差约 0.0250001 m。
+旧数据保留，本轮新标签另存。
+
+## 帧间标签究竟保证什么
+
+先明确一条参考插值路径：root 平移和关节角线性插值，root 四元数做最短弧 SLERP。
+对一个身体形状，用祖先关节链长度构造保守力臂上界，得到区间内的运动变化上界：
+
+\[
+B_s=\|\Delta p\|+R_{s,root}\,\Delta\theta_{root}
+    +\sum_{j\in ancestors(s)}R_{s,j}|\Delta q_j|.
+\]
+
+任意中间时刻距离某个端点最多半个区间，故可使用
+
+\[
+\underline d_{s,k}=\min(d_{s,k},d_{s,k+1})-\tfrac12 B_{s,k}.
+\]
+
+所有形状、障碍物和时间区间的下界均超过 2 cm 加 1e−8 m 数值余量，才标为
+`continuous_clear_at_margin`。原生 primitive 的实际重叠可作该几何模型内的负见证；
+mesh 外包围球的重叠不能作 mesh 碰撞证据。负的代理值也不是实际穿透深度。
+
+这个保证限定于**上述插值路径和资产的 authored collision geometry**。
+它不包含地面、身体自碰撞、支撑平衡、PhysX 接触偏移、传感误差或真实跟踪误差；
+也不自动覆盖控制器对 50 Hz 序列采用的另一条插值或平滑路径。
+
+附加数值压力检查在每个源区间加入 7 个内部采样，共 176,505 个姿态、
+39,713,625 个“形状—障碍物—时间”比较，没有发现下界被违反。
+这些内部采样也没有发现低于 2 cm 的外包围净空或 primitive 重叠。
+**这说明 71 个未知场景可能受保守界影响，不说明它们实际发生了碰撞；有限采样也不足以
+把它们升级为连续通过。** 本轮没有升级任何未知标签。
+
+![参考帧净空与区间下界](../artifacts/native-reference-v1-checks/native_clearance.png)
+
+图右是事后选出的最小区间下界案例，用来说明保守界和帧净空的差别，不是随机代表样本。
+
+## SONIC 接口：已核验与尚未完成
+
+本地 SONIC commit 为 `eb8f1f8c1e776e3507cdc1fa669f80091d270bea`；实际读取的
+六个接口源码/文档均另有 SHA256 和快照，避免仅依赖可能含本地改动的 commit。
+
+- 29 个关节按名称做 MuJoCo ↔ IsaacLab 顺序转换，并对反向排列输入验证原生 helper。
+- 30→50 Hz 转换保留原 source time、左端源索引和插值比例。SLERP 与原生 helper
+  的最大 sign-invariant quaternion chord 差为 3.33e−16。
+- 120 个 36 帧参考格式测试样例通过原生 planner 输出校验；64 帧容器中的无效尾部被排除。
+  这些是 schema fixtures，不是 planner 推理结果，也没有把未来参考当成实测历史。
+- 原生 640D packing 的哨兵往返检查通过，且与直接逐帧展平**不相等**。
+  本轮只验证该布局 helper，没有凭空生成实测 torso anchor 或运行编码器。
+- 导出的 joint velocity 是 50 Hz 位置的数值导数，不能冒充执行测量。
+
+没有指定并调用 encoder/decoder checkpoint，没有 proprioception、观测或导航目标输入，
+所以本轮导出物的类型是 `offline_reference_not_token_or_action`。
+`executed_action_valid`、`sensor_valid`、`goal_valid`、`measured_proprio_valid` 显式为 false。
+
+## 对 attention 和 flow matching 设计的直接影响
+
+当前关系数据已可按 `[time, body_shape, obstacle]` 使用：每个源帧保存形状净空，
+每个区间保存运动上界及净空下界，另有形状 owner、primitive/outer-mesh 类型、
+障碍物候选 ID、原时间轴和来源组。600 对共 5,700,375 个源帧形状关系值。
+
+下一轮应先比较 **相同读取预算的均匀采样、低净空采样、带不确定性掩码的区间采样**。
+局部 attention 的 query 可由身体部位和参考运动构成，key/value 来自附近障碍物；
+保持普通局部读取和几何计算作为强基线。先确认事件采样提高临界关系判断，
+再将该编码器接到 FM 条件分支。这里尚没有证明“越接近碰撞，学习信息越大”。
+
+建议的下一次受控实验是：保留来源组隔离，从原候选池加入未被净空筛选的障碍物，
+用连续通过 / primitive 见证 / 未知三类标签测试关系表征；未知项不得直接进入二分类负损失。
+对未知时间区间先细分以收紧界，避免模型只学到运动上界的保守程度。
+无越界参考可作后续运动目标候选，其余仍可支持带明确类型的几何关系学习。
+
+在本轮数据中，场景由参考动作反向筛选，目标和真实观测缺失。
+因此不能把它包装成 `observation + navigation goal → valid SONIC token` 的完整监督。
+这条映射仍需独立的目标/观测定义、冻结 motor 接口，以及任务与执行验证。
+
+## 复现和产物
+
+- 最终审计：[summary.json](../artifacts/native-reference-v1-final/summary.json)
+- 全部场景：[scenes.json](../artifacts/native-reference-v1-final/scenes.json)
+- 每对的最小净空时刻和部位：[pairs.json](../artifacts/native-reference-v1-final/pairs.json)
+- 帧间检查：[verification.json](../artifacts/native-reference-v1-checks/verification.json)
+- 关系张量：`artifacts/native-reference-v1-final/relations/*.npz`
+- 参考转换：`artifacts/native-reference-v1-final/references/*.npz`
+- 静态科学图：[PNG](../artifacts/native-reference-v1-checks/native_clearance.png)、[PDF](../artifacts/native-reference-v1-checks/native_clearance.pdf)
+
+使用已有 Python 环境，只将 `usd-core==26.8` 安装到本工作区 `.audit-deps`，没有修改共享环境。
+
+```bash
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_audit \
+  --source $WORKSPACE_PARENT/m2s-portability-validation/m2s-hindsight-dataset-v1-20260911 \
+  --sonic $WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb \
+  --output artifacts/new-native-reference
+
+PYTHONPATH=.audit-deps:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+$WORKSPACE_PARENT/groot-wbc-sonic-sim-trackb/.venv_isaaclab/bin/python \
+  -m motion2scene_flow.native_verify \
+  --run artifacts/new-native-reference \
+  --source $WORKSPACE_PARENT/m2s-portability-validation/m2s-hindsight-dataset-v1-20260911 \
+  --output artifacts/new-native-checks
+```
+
+两次完整审计分别用时 7.59 s 和 7.77 s；后者加入显式有效性标记、反向关节排列检查，
+并更正 pair 计数字段名。两次 `clips.json`、`pairs.json`、`scenes.json` 字节一致，
+不能算作两批独立实验。两次记录均保留。加密核验用时 20.00 s，核对了 273 个产物哈希。
+42 个测试通过（新增 8 个），Ruff 检查通过。训练次数、motor token、执行和执行动作标签均为零。

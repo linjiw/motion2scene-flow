@@ -1,0 +1,100 @@
+# Native relation event-sampling pilot v1
+
+Written before candidate relabeling and fitting. Local exploratory registration,
+not a blinded benchmark or external preregistration.
+
+## Question
+
+On the audited G1 reference geometry, does emphasizing near-boundary training
+frames improve a fixed-budget body/obstacle relation reader relative to uniform
+sampling or simply emphasizing the smallest clearance? Test this before adding
+the reader to FM. This pilot trains a relation representation/readout, not a
+navigation policy, a motion predictor, or a native SONIC token model.
+
+## Data and labels
+
+Use all 120 original clips and every original candidate obstacle (225 per clip),
+including candidates excluded by the old clearance selector. Preserve source
+ancestry and original splits: train has 100 clips in 11 groups (90 clips share
+one group); development has 20 clips in 18 disjoint groups. Development was
+previously used for audit, so call this a development comparison, not fresh test
+generalization. No hyperparameter/arm/checkpoint selection using development.
+
+Reuse the hash-bound audited USD shape/joint table and verify references and
+candidate files against its receipts. Labels concern authored robot/obstacle
+geometry; floor, self-collision, execution and cooked contact shapes remain out
+of scope. Keep reference joint-limit violations visible; these poses may teach
+geometry but are not valid motor imitation targets.
+
+At each original source frame, record the minimum across all outer collision
+shapes and the minimum across the actual primitive subset. A positive frame has
+outer clearance > 0.02 m + 1e-8 m. A negative frame has primitive overlap < −1e-8 m.
+Other frames are unknown and have no binary training loss. Mesh-sphere overlap
+alone is never a collision witness. Negative proxy values are not penetration depths.
+
+Whole-clip pair labels use the prior linear-XYZ/joints, shortest-arc-root-SLERP
+interpolant. Any evaluated primitive overlap witnesses a negative. An interval
+Lipschitz lower bound above the same margin certifies a positive. For pairs with
+clear original frames but unresolved temporal bounds, bisect only unresolved
+intervals, keeping already certified intervals; cap depth at 8 (256 subdivisions).
+Never promote by dense sampling alone. Pairs already below the outer margin and
+without a primitive witness remain unknown; do not spend refinement on them.
+Unknown labels are retained in evaluation and never silently called negative.
+Report refinement calls, remaining unknowns, and old 600-pair/240-scene retention.
+
+## Learning comparison and information budget
+
+Cross three samplers with two pooling methods and three seeds: 18 fits. All share
+600 optimizer updates, batch 64, width 32, AdamW learning rate 0.001, final weights
+only. Run on CPU with two threads, leaving the occupied GPU alone.
+
+Each sampled training row chooses source group uniformly, then a clip uniformly,
+then an obstacle with any labeled source frame uniformly. Choose positive/negative
+class equally when both exist, otherwise use the available class. Share this
+group/clip/obstacle/class schedule across all arms of the same seed. Only the
+within-class source-frame selection changes:
+
+- Uniform: uniform among eligible frames of the chosen class.
+- Low clearance: 50% uniform, 50% uniform from the lowest outer-clearance quartile
+  among those same eligible frames.
+- Boundary: 50% uniform, 50% uniform among eligible positive frames within 0.02 m
+  above the 0.02 m threshold or negative frames with primitive margin within
+  0.02 m of zero. Fall back to uniform if that set is empty.
+
+All labels and event scores are computed offline, for all methods. This tests a
+training sampler at matched neural reads, not label-acquisition efficiency or a
+deployable event detector. Report shared full-geometry preprocessing cost. No
+clearance, interval label, candidate ID, split, ancestry, or class is a model input.
+
+For each frame/obstacle the reader receives 45 shape tokens: two capsule endpoints
+in obstacle coordinates, shape radius, obstacle half extents, sphere flag, and
+primitive-subset flag (12 floats/token). A shared MLP embeds tokens; uniform or
+learned attention pooling yields a 32-float representation and a binary head.
+Nominal parameter counts match (uniform pooling disables learned attention scores).
+This uses complete reference geometry, not partial robot observations.
+
+Inference is identical for every learned arm: 16 uniformly spaced source frames,
+45 body tokens/frame, whole-pair score = minimum predicted positive probability.
+720 body-token reads/pair. A deterministic geometric comparator gets exactly these
+same 16 frames; full continuous labels are the higher-cost evaluation reference.
+
+## Outcomes and decisions
+
+Primary: primitive-overlap witness rate among the top 30% scored development pairs,
+reported with counts and unknown-accept rate. Acceptance is ranked over the entire
+development pool with stable tie handling and floor(N×0.30). Unknowns cannot make
+the witness rate a complete unsafe rate. Also report certified-positive acceptance,
+conditional known-label balanced accuracy, and all pair-label counts.
+
+Aggregate seeds without hiding any run. Compare boundary vs uniform within pooling
+and attention vs uniform within sampler. Bootstrap the 18 development ancestry
+groups, preserving paired predictions and averaging seed rates, for descriptive
+95% intervals; keep fixed full-pool selection masks within resamples. Groups, clips,
+candidate pairs, frames and fits are different units. No significance claim based
+on thousands of correlated frames. No selected best seed/checkpoint.
+
+Boundary support requires better witness rejection without replacing it by unknown
+accepts; report tradeoffs and comparisons to low-clearance and geometric controls.
+Mixed/null results constrain the next FM-conditioning design. Even a positive
+result does not prove maximal information at tight maneuvers, learned execution,
+goal-conditioned motion generation, compression of observations, or transfer to MTC.
