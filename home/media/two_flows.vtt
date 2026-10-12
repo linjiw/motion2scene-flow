@@ -1,0 +1,710 @@
+WEBVTT
+
+00:00:00.600 --> 00:00:04.321
+This is a Unitree G1 humanoid, in full physics simulation,
+
+00:00:04.321 --> 00:00:07.336
+walking through rooms it has never seen before.
+
+00:00:07.686 --> 00:00:10.337
+It ducks under a scaffold brace, then pulls its
+
+00:00:10.337 --> 00:00:12.254
+arms in to slip between two carts.
+
+00:00:12.604 --> 00:00:14.448
+It weaves through a slalom of crates,
+
+00:00:14.448 --> 00:00:16.789
+and finds its way across a cluttered warehouse.
+
+00:00:17.139 --> 00:00:20.852
+Every one of these movements was planned by a network that learned
+
+00:00:20.852 --> 00:00:24.172
+whole-body navigation, in large part, from imagined scenes.
+
+00:00:26.167 --> 00:00:28.851
+This video explains how. We call it Two Flows.
+
+00:00:29.201 --> 00:00:31.861
+We will go step by step: the problem, the idea,
+
+00:00:31.861 --> 00:00:35.088
+the one tool behind it, the scene generator, the teacher,
+
+00:00:35.088 --> 00:00:38.597
+the arena, and the student that brings it toward a real robot.
+
+00:00:40.401 --> 00:00:45.083
+Most robots navigate on a flat map: a floor plan where every cell is either free
+
+00:00:45.083 --> 00:00:48.536
+or blocked, and a path that threads through the free cells.
+
+00:00:48.886 --> 00:00:52.877
+But a humanoid is not a disk on a floor plan. It can duck under a beam,
+
+00:00:53.227 --> 00:00:55.285
+or pull its arms in to slip through a gap
+
+00:00:55.285 --> 00:00:56.942
+that its swinging arms would hit.
+
+00:00:57.292 --> 00:00:59.394
+So the question is not only where to walk,
+
+00:00:59.394 --> 00:01:01.646
+but how the whole body should move, and when.
+
+00:01:01.996 --> 00:01:05.767
+Learning that takes data: thousands of scenes, each paired with a
+
+00:01:05.767 --> 00:01:09.944
+whole-body motion that gets through it. Collecting those pairs on a real
+
+00:01:09.944 --> 00:01:13.193
+robot, or designing them by hand, simply does not scale.
+
+00:01:14.801 --> 00:01:18.325
+Our idea flips the problem around. Motion is plentiful:
+
+00:01:18.325 --> 00:01:22.939
+human motion capture, text-to-motion models, and the robot's own skills.
+
+00:01:23.289 --> 00:01:26.243
+So we start from a motion, like this ducking walk,
+
+00:01:26.243 --> 00:01:29.848
+and imagine the obstacles that would make exactly this motion
+
+00:01:29.848 --> 00:01:33.039
+necessary. This is called learning from hallucination.
+
+00:01:33.389 --> 00:01:37.590
+Necessary is the key word. Next to the real motion, we keep what the body
+
+00:01:37.590 --> 00:01:40.814
+would have done otherwise; here, simply walking upright.
+
+00:01:41.164 --> 00:01:45.304
+A beam that both versions clear explains nothing. A beam so low that
+
+00:01:45.304 --> 00:01:49.567
+even the duck hits it is impossible. Only a beam that the upright walk
+
+00:01:49.567 --> 00:01:52.307
+hits, and the duck clears, explains the duck.
+
+00:01:52.657 --> 00:01:56.111
+Every imagined scene is checked exactly against the body's
+
+00:01:56.111 --> 00:01:58.970
+geometry, so each pair comes with a certificate:
+
+00:01:58.970 --> 00:02:02.840
+this motion solves this scene, and the easy alternative does not.
+
+00:02:04.435 --> 00:02:07.789
+Put together, this gives the two flows at the heart of the project.
+
+00:02:08.139 --> 00:02:11.954
+Flow one, SceneFlow, goes from motion to scene. Given a motion,
+
+00:02:11.954 --> 00:02:16.010
+it generates many different scenes that make that motion necessary.
+
+00:02:16.360 --> 00:02:20.113
+Flow two, the flow planner, goes the other way. Given a scene and a
+
+00:02:20.113 --> 00:02:23.305
+goal, it generates the whole-body motion that gets there.
+
+00:02:23.655 --> 00:02:28.161
+Flow one manufactures the training data for flow two. That planner is our
+
+00:02:28.161 --> 00:02:32.234
+teacher. In simulation, it gets a perfect map of its surroundings.
+
+00:02:32.584 --> 00:02:37.059
+Its plans are carried out by SONIC, a frozen whole-body motion tracker that
+
+00:02:37.059 --> 00:02:40.699
+turns planned motion into joint commands, under full physics.
+
+00:02:41.049 --> 00:02:44.635
+A student planner then learns the same job from the robot's
+
+00:02:44.635 --> 00:02:47.248
+own lidar, the sensor a real robot carries.
+
+00:02:47.598 --> 00:02:50.720
+And to measure all of this honestly, we built an arena of
+
+00:02:50.720 --> 00:02:53.349
+scenes that none of these models was trained on.
+
+00:02:54.935 --> 00:02:57.637
+Both halves of our system are built on one tool,
+
+00:02:57.637 --> 00:03:01.015
+called flow matching. Here is the whole idea in one picture.
+
+00:03:01.365 --> 00:03:05.158
+Start with simple noise: a cloud of random points. Next to it,
+
+00:03:05.158 --> 00:03:10.359
+a set of real examples. In this toy, the examples are points on a robot's silhouette.
+
+00:03:10.709 --> 00:03:13.533
+During training, we pair each noise point with a real
+
+00:03:13.533 --> 00:03:16.197
+example, and connect the two with a straight line.
+
+00:03:16.547 --> 00:03:21.269
+We pick a random time t along that line. The network sees the in-between point,
+
+00:03:21.269 --> 00:03:24.916
+and must predict the velocity that carries it to the example.
+
+00:03:25.266 --> 00:03:29.838
+Averaged over many pairs, those predictions form a smooth velocity field.
+
+00:03:29.838 --> 00:03:33.971
+Watch how the field reshapes itself as time runs from zero to one.
+
+00:03:34.321 --> 00:03:37.797
+To generate, we drop fresh noise into the field and follow
+
+00:03:37.797 --> 00:03:40.914
+the arrows, in a few dozen small steps. That is just
+
+00:03:40.914 --> 00:03:43.431
+solving an ordinary differential equation.
+
+00:03:43.781 --> 00:03:46.884
+Now add a condition. Ask for a ducking pose instead,
+
+00:03:46.884 --> 00:03:49.569
+and the very same noise flows somewhere else.
+
+00:03:49.919 --> 00:03:52.261
+That is all SceneFlow and our planner are:
+
+00:03:52.261 --> 00:03:55.717
+the same recipe, with different data and different conditions.
+
+00:03:57.302 --> 00:04:01.231
+Before SceneFlow can imagine scenes, it needs examples of good
+
+00:04:01.231 --> 00:04:04.399
+ones. These come from a slower, exact data engine.
+
+00:04:04.749 --> 00:04:08.112
+It starts from groups of motions that share the same past,
+
+00:04:08.112 --> 00:04:11.532
+but continue differently: duck, side-step, or keep walking.
+
+00:04:11.532 --> 00:04:16.751
+Each future is a target, and its siblings are the alternatives that a scene must rule out.
+
+00:04:17.101 --> 00:04:19.846
+On an alternative's body, the engine finds critical
+
+00:04:19.846 --> 00:04:21.891
+points that the target stays clear of.
+
+00:04:22.241 --> 00:04:24.016
+From such a point it grows a box,
+
+00:04:24.016 --> 00:04:26.489
+face by face, until it would touch the target.
+
+00:04:26.839 --> 00:04:30.704
+Then an exact check with forty-five body capsules keeps only scenes
+
+00:04:30.704 --> 00:04:33.532
+that the target clears, and the alternative hits.
+
+00:04:33.882 --> 00:04:37.260
+From human motion capture, text-to-motion clips and SONIC
+
+00:04:37.260 --> 00:04:40.638
+skills, this produced over four hundred thousand verified
+
+00:04:40.638 --> 00:04:43.543
+scenes, for thirty-three thousand target motions.
+
+00:04:45.136 --> 00:04:48.866
+SceneFlow itself is a flow-matching model over sets of boxes.
+
+00:04:49.216 --> 00:04:52.913
+A scene is up to eight box slots. Each slot is twelve numbers:
+
+00:04:52.913 --> 00:04:56.610
+whether it exists, what kind of obstacle it is, where it sits,
+
+00:04:56.610 --> 00:05:00.962
+how it is turned, how large it is, and the heights of its bottom and top.
+
+00:05:01.312 --> 00:05:06.071
+The condition is the motion: twenty-eight snapshots spanning almost three seconds,
+
+00:05:06.071 --> 00:05:10.598
+each with thirty body points. Optional knobs, like the clearance margin or the
+
+00:05:10.598 --> 00:05:13.615
+number of obstacles, can steer it, or be left blank.
+
+00:05:13.965 --> 00:05:19.172
+A transformer encodes the motion. A second one turns noisy slots into a velocity,
+
+00:05:19.172 --> 00:05:24.379
+letting the slots attend to each other and to the motion. It has thirteen million
+
+00:05:24.379 --> 00:05:27.658
+parameters, and trains in under an hour on one GPU.
+
+00:05:28.008 --> 00:05:30.783
+To sample, we follow the flow for forty steps.
+
+00:05:30.783 --> 00:05:34.343
+In the second half, two gentle corrections nudge the boxes:
+
+00:05:34.343 --> 00:05:37.480
+stay clear of the motion, and block the alternative.
+
+00:05:37.830 --> 00:05:40.616
+Finally, each box is snapped snug against the body,
+
+00:05:40.616 --> 00:05:43.403
+and the exact checker accepts or rejects the scene.
+
+00:05:45.003 --> 00:05:48.394
+Here is SceneFlow on a ducking motion it never saw in training.
+
+00:05:48.744 --> 00:05:51.829
+Eight noisy boxes drift, settle, and lock into a scene:
+
+00:05:51.829 --> 00:05:55.642
+beams low enough to force the duck, and a wall that shapes the path.
+
+00:05:55.992 --> 00:05:58.685
+After the snap, the duck clears every box by a few
+
+00:05:58.685 --> 00:06:01.594
+centimetres, while walking upright would hit the beam.
+
+00:06:01.944 --> 00:06:05.483
+Sample again, and you get a different scene for the same motion.
+
+00:06:05.483 --> 00:06:08.968
+Here are eight: six pass the exact check, and two are rejected.
+
+00:06:09.318 --> 00:06:13.166
+Each kind of motion gets its own kind of scene: beams for ducks,
+
+00:06:13.166 --> 00:06:16.955
+close walls for sideways shuffles, low covers for crouch-walks.
+
+00:06:17.305 --> 00:06:20.908
+Across six hundred held-out motions, two out of three samples
+
+00:06:20.908 --> 00:06:24.334
+pass the full exact check. The slow engine, which sees the
+
+00:06:24.334 --> 00:06:27.110
+alternatives directly, passes four out of five.
+
+00:06:28.703 --> 00:06:32.004
+One more piece connects the two flows. We call it CycleFlow.
+
+00:06:32.354 --> 00:06:36.636
+For each generated scene, we ask a planner how much better it predicts the real
+
+00:06:36.636 --> 00:06:39.835
+motion when it sees the scene, compared with an empty room.
+
+00:06:40.185 --> 00:06:43.574
+That gap measures how much the scene says about the motion.
+
+00:06:43.574 --> 00:06:47.651
+For every motion, we keep the most informative of four verified scenes.
+
+00:06:48.001 --> 00:06:52.273
+Teachers trained on these cycle-filtered scenes reached more goals than
+
+00:06:52.273 --> 00:06:56.605
+teachers trained on randomly chosen verified scenes: thirty-seven versus
+
+00:06:56.605 --> 00:07:00.396
+thirty-three out of fifty-six, without guidance. With guidance,
+
+00:07:00.396 --> 00:07:03.765
+the gain shrinks to two goals, which is not significant.
+
+00:07:05.370 --> 00:07:07.545
+Now the second flow: the teacher planner.
+
+00:07:07.895 --> 00:07:11.483
+It looks at a privileged height map, three metres by one and a
+
+00:07:11.483 --> 00:07:14.840
+half, centred on the robot. One layer holds the heights of
+
+00:07:14.840 --> 00:07:18.197
+obstacles on the ground, one holds waist-height overhangs,
+
+00:07:18.197 --> 00:07:21.091
+and one holds how low the overhead obstacles hang.
+
+00:07:21.441 --> 00:07:25.212
+It also gets the last few frames of its own motion, and a local goal.
+
+00:07:25.562 --> 00:07:29.071
+Out comes one second of whole-body motion: body height,
+
+00:07:29.071 --> 00:07:32.005
+tilt, speed, and all twenty-nine joint angles,
+
+00:07:32.005 --> 00:07:36.406
+frame by frame. Here, the plan lowers the body to pass under a brace.
+
+00:07:36.756 --> 00:07:41.188
+It is trained with the same flow-matching recipe, on sixty-eight thousand
+
+00:07:41.188 --> 00:07:45.438
+windows of ordinary navigation motion, plus fifteen thousand SceneFlow
+
+00:07:45.438 --> 00:07:49.142
+necessity windows, which are sampled almost half of the time.
+
+00:07:49.492 --> 00:07:52.293
+Training takes about half an hour on one GPU,
+
+00:07:52.293 --> 00:07:54.970
+and every result uses three training seeds.
+
+00:07:56.570 --> 00:07:59.809
+Every 0.16 seconds, the teacher makes a new plan.
+
+00:07:59.809 --> 00:08:03.576
+Here is one planning step in the slalom, seen from above.
+
+00:08:03.926 --> 00:08:06.876
+First, a route to the goal, computed on the true map,
+
+00:08:06.876 --> 00:08:09.603
+that prefers to keep its distance from obstacles.
+
+00:08:09.953 --> 00:08:13.671
+A local goal is placed a short distance ahead, steering toward the route.
+
+00:08:14.021 --> 00:08:17.235
+The flow planner then samples sixteen candidate motions in
+
+00:08:17.235 --> 00:08:19.729
+parallel, each starting from different noise.
+
+00:08:20.079 --> 00:08:23.683
+While they form, a guidance term pushes every body part away from
+
+00:08:23.683 --> 00:08:26.622
+the obstacles, which are padded by eight centimetres.
+
+00:08:26.972 --> 00:08:30.184
+Each candidate is checked against the padded obstacles.
+
+00:08:30.184 --> 00:08:33.337
+Here, eleven of the sixteen keep the whole body clear.
+
+00:08:33.337 --> 00:08:37.717
+Among those, the planner picks the one that ends closest to the local goal.
+
+00:08:38.067 --> 00:08:40.578
+Only the first sixth of the plan is executed.
+
+00:08:40.578 --> 00:08:43.926
+Then the next plan starts from wherever the robot really is.
+
+00:08:44.276 --> 00:08:48.602
+Here is the whole run. Wherever the route's clearance drops below forty-five
+
+00:08:48.602 --> 00:08:52.586
+centimetres, a tight mode slows the robot down and brings its arms in.
+
+00:08:54.170 --> 00:08:56.725
+Here is a planning step in 3-D. On the left,
+
+00:08:56.725 --> 00:09:00.267
+the network alone: none of its sixteen candidates keeps clear
+
+00:09:00.267 --> 00:09:03.577
+of the beam. On the right, with guidance, all sixteen do.
+
+00:09:03.927 --> 00:09:08.455
+The chosen plan goes to SONIC, a general whole-body motion tracker that was
+
+00:09:08.455 --> 00:09:12.501
+trained separately. We keep it frozen, and it never sees the scene.
+
+00:09:12.851 --> 00:09:16.369
+SONIC turns the plan into joint targets fifty times a second,
+
+00:09:16.369 --> 00:09:20.003
+and Isaac Lab simulates the physics two hundred times a second.
+
+00:09:20.353 --> 00:09:24.746
+Because the teacher replans from the measured state every 0.16 seconds,
+
+00:09:24.746 --> 00:09:28.273
+the loop absorbs slips and tracking errors along the way.
+
+00:09:29.870 --> 00:09:32.501
+Put together, the teacher handles scenes like these.
+
+00:09:32.851 --> 00:09:36.062
+An office corridor with signs and door headers at head height.
+
+00:09:36.412 --> 00:09:39.285
+A validation scene that SceneFlow generated from a
+
+00:09:39.285 --> 00:09:41.353
+motion the teacher never trained on.
+
+00:09:41.703 --> 00:09:44.769
+A parking lot where the only way through is a fifty-six
+
+00:09:44.769 --> 00:09:47.055
+centimetre slot between a car and a wall.
+
+00:09:47.405 --> 00:09:50.884
+And the duck-then-tuck drill from the very beginning, seen from the front.
+
+00:09:52.470 --> 00:09:56.689
+To know whether any of this generalizes, we needed a test the models
+
+00:09:56.689 --> 00:09:59.916
+never trained on. So we built the G1 Traverse Arena.
+
+00:10:00.266 --> 00:10:04.431
+It has seventeen families of scenes: offices, warehouses, lobbies,
+
+00:10:04.431 --> 00:10:08.154
+parks, parking lots, debris fields, and drills for ducking,
+
+00:10:08.154 --> 00:10:13.896
+squeezing, slaloms and dead ends. Four families are sealed, and kept out of every decision.
+
+00:10:14.246 --> 00:10:17.225
+Its generator is separate from our training data engine,
+
+00:10:17.225 --> 00:10:19.405
+and every scene ships with a certificate.
+
+00:10:19.755 --> 00:10:23.606
+In the whole-body tier, a flat route with a fixed posture must
+
+00:10:23.606 --> 00:10:27.519
+fail, a posture-aware route must succeed, and a real G1 motion,
+
+00:10:27.519 --> 00:10:30.438
+executed by SONIC, must fit through every gate.
+
+00:10:30.788 --> 00:10:34.795
+We tune on validation scenes that SceneFlow makes from held-out
+
+00:10:34.795 --> 00:10:37.848
+motions, check every change on arena dev scenes,
+
+00:10:37.848 --> 00:10:41.282
+and read the sealed test only once per adopted recipe.
+
+00:10:41.632 --> 00:10:45.054
+We audit ourselves, too. When we found that the robot could
+
+00:10:45.054 --> 00:10:48.071
+simply walk around the outside of open arena scenes,
+
+00:10:48.071 --> 00:10:51.087
+we closed them with walls, and reset every baseline.
+
+00:10:52.704 --> 00:10:54.532
+Here is where the teacher stands today.
+
+00:10:54.882 --> 00:10:59.404
+On the validation scenes, goals rose from thirty-three to forty-nine out of
+
+00:10:59.404 --> 00:11:03.684
+seventy-one, mostly from two fixes: a route that covers the whole task,
+
+00:11:03.684 --> 00:11:07.121
+and slowing down with the arms tucked in narrow passages.
+
+00:11:07.471 --> 00:11:10.877
+On the closed arena dev scenes, the current teacher reaches
+
+00:11:10.877 --> 00:11:13.649
+sixty-seven percent of its goals, with no falls.
+
+00:11:13.999 --> 00:11:17.864
+The whole-body tier is much harder: thirteen out of a hundred and
+
+00:11:17.864 --> 00:11:22.383
+twenty-nine. Ducks under beams always work here. Slots barely wider than the
+
+00:11:22.383 --> 00:11:25.832
+robot, and gaps that need walking sideways, mostly do not.
+
+00:11:26.183 --> 00:11:29.950
+Two failures show where the limits are. Asked to duck under a
+
+00:11:29.950 --> 00:11:33.717
+sign at one point zero six metres, SONIC lowers the body only
+
+00:11:33.717 --> 00:11:36.002
+so far, and the torso clips the sign.
+
+00:11:36.352 --> 00:11:39.441
+And walking straight at a torso-height counter fails,
+
+00:11:39.441 --> 00:11:43.229
+while turning sideways gets through. That sideways run comes from
+
+00:11:43.229 --> 00:11:46.318
+an experimental variant that we have not adopted yet.
+
+00:11:47.904 --> 00:11:51.233
+A real robot has no perfect map. So the student planner
+
+00:11:51.233 --> 00:11:54.200
+builds its own, from the G1's head-mounted lidar.
+
+00:11:54.550 --> 00:11:57.942
+We simulate that lidar ray by ray. Each ray returns the
+
+00:11:57.942 --> 00:12:00.965
+first surface it meets: the floor, the side of an
+
+00:12:00.965 --> 00:12:03.864
+obstacle, or the underside of an overhead beam.
+
+00:12:04.214 --> 00:12:07.663
+Returns are written into a memory grid. The student reads
+
+00:12:07.663 --> 00:12:10.810
+the same three-metre map as the teacher, except that
+
+00:12:10.810 --> 00:12:13.473
+anything it has not seen yet counts as free.
+
+00:12:13.823 --> 00:12:17.079
+The student keeps the teacher's network and training targets,
+
+00:12:17.079 --> 00:12:21.082
+but learns them from these lidar maps, replayed along the training motions.
+
+00:12:21.432 --> 00:12:25.204
+Occlusion matters. Here, the second beam hides behind the first.
+
+00:12:25.204 --> 00:12:29.095
+The plain student walks into it. Enlarging every beam it has seen,
+
+00:12:29.095 --> 00:12:33.280
+by up to sixty centimetres, makes it cautious, and it ducks under both.
+
+00:12:33.630 --> 00:12:37.251
+On a fresh panel of two hundred and fifty-two tasks, read once,
+
+00:12:37.251 --> 00:12:41.448
+the student with its own lidar route reached two hundred and seven goals.
+
+00:12:41.448 --> 00:12:45.070
+The teacher, with a perfect map, reached two hundred and eight.
+
+00:12:46.671 --> 00:12:50.286
+The last step is the real robot, and we have built the whole path to it.
+
+00:12:50.636 --> 00:12:54.471
+On the G1, a node reads the robot's own Mid-360 point cloud,
+
+00:12:54.471 --> 00:12:58.114
+removes the robot's own body from it, corrects for motion
+
+00:12:58.114 --> 00:13:00.990
+during each sweep, and fills the same memory.
+
+00:13:01.340 --> 00:13:06.682
+A fused GPU version of the planner returns a plan in under two tenths of a second,
+
+00:13:06.682 --> 00:13:10.656
+two to three times faster than before, with the same choices.
+
+00:13:10.656 --> 00:13:15.477
+SONIC runs in C++ on the robot, and a gamepad can take over at any moment.
+
+00:13:15.827 --> 00:13:19.743
+We rehearse the full stack in MuJoCo, with the real lidar pattern,
+
+00:13:19.743 --> 00:13:23.541
+odometry noise and delays. It reaches eighty-two of ninety-eight
+
+00:13:23.541 --> 00:13:26.686
+goals, close to the eighty-three it reaches in Isaac.
+
+00:13:27.036 --> 00:13:32.233
+The rehearsal also showed what matters most: an uncalibrated three-degree tilt of
+
+00:13:32.233 --> 00:13:36.019
+the lidar drops it to fifteen. So calibration is mandatory.
+
+00:13:36.369 --> 00:13:40.344
+Nothing has run on the physical robot yet. The next steps are a
+
+00:13:40.344 --> 00:13:44.194
+staged hardware ladder: standing perception, then open floor,
+
+00:13:44.194 --> 00:13:46.907
+then ground obstacles, and only then beams.
+
+00:13:48.505 --> 00:13:51.079
+To close, here are the principles behind this work.
+
+00:13:51.429 --> 00:13:54.092
+Generate necessity, not clutter. Every training
+
+00:13:54.092 --> 00:13:56.302
+scene exists because a motion needs it.
+
+00:13:56.652 --> 00:13:59.263
+Certify everything. Every training pair and
+
+00:13:59.263 --> 00:14:01.511
+every arena scene is checked exactly.
+
+00:14:01.861 --> 00:14:05.390
+Keep the test honest. Tune on learned validation scenes,
+
+00:14:05.390 --> 00:14:09.234
+test once on a sealed arena, and keep every new idea switched
+
+00:14:09.234 --> 00:14:12.322
+off by default until it wins a paired comparison.
+
+00:14:12.672 --> 00:14:16.145
+What comes next: reading the sealed test, teaching the planner to
+
+00:14:16.145 --> 00:14:19.510
+slip sideways through the tightest gaps, putting the student on
+
+00:14:19.510 --> 00:14:21.807
+the arena, and the first steps on hardware.
+
+00:14:23.405 --> 00:14:26.363
+Two flows. One imagines the world a motion needs.
+
+00:14:26.363 --> 00:14:30.407
+The other finds the motion a world demands. Thank you for watching.
+

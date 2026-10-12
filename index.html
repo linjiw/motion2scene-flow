@@ -1,529 +1,411 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Motion2Scene Flow — Learning to move through clutter</title>
-<meta name="description" content="A research review of scene–motion representations, flow matching for robotics, eleven controlled experiments, and the path toward scene-aware humanoid traversal.">
-<meta name="theme-color" content="#14382f"><meta property="og:title" content="Motion2Scene Flow — Research, evidence and next steps"><meta property="og:description" content="What geometry must a motion model preserve? Eleven experiments, an illustrated flow-matching guide, and a testable research roadmap.">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><script defer src="app.js"></script></head>
-<body><a class="skip" href="#the-problem">Skip to research</a>
-<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M↦S</span> Motion2Scene <strong>Flow</strong></a><div class="top-links"><a href="two-flows/">Two Flows (Oct 2026)</a><a href="#experiments-and-findings">Experiments</a><a href="#research-roadmap">Roadmap</a><a href="https://github.com/linjiw/motion2scene-flow">GitHub ↗</a></div></header>
-<div class="hero" id="top"><div class="hero-copy"><p class="eyebrow">Research notebook / Humanoid traversal / 21 September 2026</p><h1>Learning to move<br>through <em>clutter.</em></h1><p class="lede">Which geometric details must a motion model preserve—and how can flow matching turn them into useful whole-body actions?</p><p class="hero-description">A complete review of our representation, generation and verification experiments. The promising results, the failed hypotheses, and the questions that should come next.</p><div class="hero-actions"><a class="button" href="#flow-matching-carefully">Understand the method <span>↗</span></a><a class="text-link" href="#experiments-and-findings">Explore the evidence ↓</a><a class="text-link" href="two-flows/">Latest: Two Flows presentation, 9 Oct 2026 →</a></div></div>
-<div class="hero-visual"><svg viewBox="0 0 440 340" role="img" aria-label="Conceptual whole-body clearance diagram beneath an overhead obstacle"><defs><pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#d4e0d7" stroke-width=".6"/></pattern></defs><rect x="10" y="10" width="420" height="300" rx="12" fill="url(#grid)"/><path d="M25 278H413" stroke="#899b91" stroke-width="2"/><path d="M140 30H345V114H140Z" fill="#ad7660" opacity=".65"/><path d="M155 115H332" stroke="#804831" stroke-width="3"/><path d="M44 228C100 230 124 191 180 184S293 218 402 226" fill="none" stroke="#487f6b" stroke-width="2" stroke-dasharray="6 6"/><g stroke="#164f40" stroke-width="14" stroke-linecap="round" fill="none"><path d="M188 171L222 204L203 235L173 266M222 204L251 232L282 263M194 179L156 200L128 222M204 177L244 176L268 207"/></g><g fill="#bfd6c9" stroke="#164f40" stroke-width="2"><circle cx="181" cy="148" r="19"/><circle cx="220" cy="202" r="12"/><circle cx="202" cy="236" r="9"/><circle cx="252" cy="232" r="9"/></g><path d="M180 118V128M175 118H185M175 128H185" stroke="#c95b30" stroke-width="2"/><text x="205" y="139" fill="#874729" font-size="12">clearance is local</text><text x="35" y="302" fill="#52665f" font-size="12">prepare → pass → whole-body exit → recover</text><text x="35" y="330" fill="#52665f" font-size="11">Concept illustration · not an experimental robot rollout</text></svg></div></div>
-<div class="status-strip"><div><b>11</b><span>study blocks reviewed</span></div><div><b>75</b><span>tests in the latest research suite</span></div><div><b>3</b><span>continuous controls in current FM</span></div><div><b>0</b><span>robot rollouts in these studies</span></div></div>
-<div class="page-layout"><aside><nav aria-label="Research contents"><p class="eyebrow">Inside the notebook</p><a href="#the-problem"><span>01</span>The problem</a><a href="#system-and-data"><span>02</span>System and data</a><a href="#flow-matching-carefully"><span>03</span>Flow matching, carefully</a><a href="#experiments-and-findings"><span>04</span>Experiments and findings</a><a href="#critical-events-and-attention"><span>05</span>Critical events and attention</a><a href="#research-roadmap"><span>06</span>Research roadmap</a><a href="#literature-map"><span>07</span>Literature map</a><a href="#evidence-and-limitations"><span>08</span>Evidence and limitations</a><a href="#related-projects"><span>09</span>Related projects</a></nav><div class="aside-note"><b>Evidence first.</b><p>Measured proxy results, native-reference audits, literature and future hypotheses are labeled separately.</p><button type="button" id="print-review">Print / save PDF</button></div></aside><main><section class="chapter"><h2 id="the-problem">The problem</h2>
-<p>A humanoid moving through a furnished room cannot be treated as a point following a collision-free floor path. A route may clear the feet while striking the head; a crouch may clear a beam while the trailing shoulder is still underneath it. The relevant object is a <strong>whole-body trajectory through three-dimensional space</strong>, including preparation, constrained passage and recovery.</p>
-<p>We want a robot to use its observations, measured state and navigation goal to propose coordinated future motions that a fixed controller can actually track. Several motions may work: turn sideways, crouch, choose a different route, slow down, or stop when a passage cannot be established. A useful generator must preserve these alternatives without averaging them into a collision.</p>
-<div class="callout question"><span class="eyebrow">Our research question</span><p>Under limited representation and inference budgets, can scene–motion pretraining preserve the local geometric distinctions that change whole-body traversability, and help a conditional flow model choose an appropriate motion early enough to execute it?</p></div>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Flows — Whole-body humanoid navigation from imagined scenes</title>
+<meta name="description" content="Two Flows: SceneFlow imagines the scenes a motion needs, a flow-matching planner finds the whole-body motion a scene demands. Learned hallucination, a G1 teacher, a lidar student and the G1 Traverse Arena.">
+<meta name="theme-color" content="#0f1420">
+<meta property="og:title" content="Two Flows — whole-body humanoid navigation from imagined scenes">
+<meta property="og:description" content="Motion → scene and scene → motion: learned hallucination with flow matching for a Unitree G1. Video, interactive explainers and results.">
+<meta property="og:image" content="https://linjiw.github.io/motion2scene-flow/home/media/two_flows_poster.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="home/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="home/fonts/plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="home/style.css">
+<script defer src="home/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#video">Skip to the video</a>
 
-<p>The phrase “critical moment” is a hypothesis about information, not a label for every low-clearance frame. The head’s closest approach may occur after the last practical time to start crouching. We therefore care about both <strong>where the constraint occurs</strong> and <strong>when the policy must respond</strong>. 小净空、关键决策时刻与高训练损失不是同一回事。</p>
-<p>Our long-term task is conditional generation of a reference chunk <strong>M</strong>, given a causal observation map <strong>S_obs</strong>, measured history <strong>h</strong>, navigation goal <strong>g</strong>, and already committed reference prefix <strong>P</strong>:</p>
-<pre><code class="language-text">C = (S_obs, h, g, P)                  M ~ pθ(M | C)
-reference → interface/codec → fixed tracker → executed motion
-</code></pre>
-<p>Success eventually means reaching the goal, clearing the obstacle with the whole body, avoiding prohibited contacts and falls, and completing recovery or stopping. A safe refusal is a separate outcome from successful traversal. Geometric clearance alone does not establish balance, support, joint feasibility, perception quality or tracking success.</p>
-<h3 id="what-exists-today">What exists today</h3>
-<p>The implemented generator emits only <strong>crouch amplitude, yaw and lateral shift</strong>, decoded into a seven-sphere motion proxy. It uses complete synthetic geometry and a fixed navigation direction. A separate branch audits native G1 reference geometry and temporal relations. These branches share research questions, but <strong>the native-body studies are not evidence that the proxy FM already generates full G1 motion</strong>.</p>
-<div class="scope-grid"><div><b>Completed</b><p>Controlled scene-representation studies; continuous proxy FM; bounded-output and solver comparisons; G1 asset/reference audits; body/time relation studies; certified candidate checking and exact fallback.</p></div><div><b>Still proposed</b><p>MTC pretraining; causal sensor-conditioned, varying-goal motion generation; a qualified motion codec; native SONIC-token prediction; closed-loop traversal with a fixed tracker.</p></div></div>
+<header class="nav" id="nav">
+  <a class="brand" href="#top"><span class="mark" aria-hidden="true"><i class="a"></i><i class="t"></i></span>Two&nbsp;Flows</a>
+  <nav aria-label="Sections">
+    <a href="#video">Video</a><a href="#idea">Idea</a><a href="#flow-matching">Flow matching</a><a href="#sceneflow">SceneFlow</a><a href="#teacher">Teacher</a><a href="#arena">Arena</a><a href="#results">Results</a><a href="#student">Student</a><a href="#deploy">Robot</a>
+  </nav>
+  <div class="nav-more"><a href="notebook.html">Notebook</a><a href="two-flows/">Oct 9 deck</a><a href="https://github.com/linjiw/motion2scene-flow" rel="noopener">GitHub ↗</a></div>
+</header>
 
-</section><section class="chapter"><h2 id="system-and-data">System and data</h2>
-<figure class="architecture"><svg viewBox="0 0 1000 290" role="img" aria-labelledby="arch-title arch-desc"><title id="arch-title">Proposed research system and the implemented proxy path</title><desc id="arch-desc">Observations and goals feed scene representations and a conditional flow generator. Decoded motion is checked before a future tracker interface. Dashed boxes indicate unimplemented deployment components.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#49635d"/></marker></defs><g fill="#edf4ef" stroke="#8caaa0"><rect x="10" y="55" width="180" height="100" rx="12"/><rect x="225" y="55" width="170" height="100" rx="12"/><rect x="430" y="55" width="165" height="100" rx="12"/><rect x="630" y="55" width="160" height="100" rx="12"/></g><rect x="825" y="55" width="165" height="100" rx="12" fill="#fff" stroke="#8caaa0" stroke-dasharray="6 5"/><g font-size="17" fill="#18352c" text-anchor="middle"><text x="100" y="90">Scene + goal</text><text x="100" y="119">+ state history</text><text x="310" y="90">Global context</text><text x="310" y="119">+ local relations</text><text x="512" y="90">Conditional FM</text><text x="512" y="119">motion proposal</text><text x="710" y="90">Decode + check</text><text x="710" y="119">+ select / abstain</text><text x="907" y="90">Fixed tracker</text><text x="907" y="119">+ execution</text></g><g stroke="#49635d" stroke-width="2" marker-end="url(#arrow)"><path d="M192 106H220"/><path d="M397 106H425"/><path d="M597 106H625"/><path d="M792 106H820"/></g><g font-size="13" fill="#52665f" text-anchor="middle"><text x="100" y="190">Today: full synthetic map</text><text x="310" y="190">32D + 12 anchor scores</text><text x="512" y="190">3 continuous controls</text><text x="710" y="190">Sphere-proxy geometry</text><text x="907" y="190">Future integration</text></g><path d="M907 160V240H100V164" fill="none" stroke="#8caaa0" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)"/><text x="500" y="266" text-anchor="middle" font-size="14" fill="#52665f">Proposed closed-loop state/observation feedback — not run in the experiments below</text></svg><figcaption>Solid boxes describe the implemented proxy research path, not a complete deployed navigation stack. The observation and goal contract must expand before deployment.</figcaption></figure>
+<section class="hero" id="top">
+  <canvas class="hero-field" id="hero-field" aria-hidden="true"></canvas>
+  <div class="hero-in">
+    <div class="hero-copy">
+      <p class="kicker">motion2scene-flow · research overview · 12 October 2026</p>
+      <h1>Two Flows</h1>
+      <p class="hero-sub">Whole-body humanoid navigation,<br>learned from imagined scenes.</p>
+      <p class="hero-flows"><span class="a">motion → scene</span><span class="dot">·</span><span class="t">scene → motion</span></p>
+      <p class="hero-text">A humanoid can duck, tuck its arms and turn sideways, but nobody has the data that pairs cluttered scenes with the whole-body motions they demand. We start from motion instead: <b>SceneFlow</b> imagines the obstacles that make a motion <em>necessary</em>, and a <b>flow-matching planner</b> learns, from those certified pairs, to find the motion a scene demands.</p>
+      <div class="hero-cta"><a class="btn" href="#video"><span class="play" aria-hidden="true"></span>Watch the 15-minute video</a><a class="btn ghost" href="#idea">How it works ↓</a></div>
+    </div>
+    <figure class="hero-reel">
+      <video id="reel" src="home/media/reel.mp4" poster="home/media/reel.jpg" muted loop playsinline preload="metadata" aria-label="Best closed-loop runs of the teacher planner on arena scenes"></video>
+      <figcaption><span class="tag">Isaac Lab physics · replayed in MuJoCo</span> Best runs of the current teacher: duck under a brace, tuck through a 0.55 m slot, slalom, office corridor, office room.</figcaption>
+    </figure>
+  </div>
+</section>
 
-<h3 id="four-different-meanings-of-token">Four different meanings of “token”</h3>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Representation</th>
-<th>What it is</th>
-<th>What must be verified</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Transformer token</td>
-<td>A sequence slot containing a learned feature vector</td>
-<td>What information is accessible and how much geometry it reads</td>
-</tr>
-<tr>
-<td>Motion latent</td>
-<td>A code for a specified motion decoder</td>
-<td>Reconstruction, temporal consistency and lost clearance</td>
-</tr>
-<tr>
-<td>SONIC native token</td>
-<td>A controller-specific learned/quantized representation</td>
-<td>Exact encoder, quantizer, decoder, checkpoint and proprioception contract</td>
-</tr>
-<tr>
-<td>Executed action</td>
-<td>A command or measured outcome in a control loop</td>
-<td>Tracking, latency, contact, balance and task success</td>
-</tr>
-</tbody>
-</table></div>
-<p>These are not interchangeable. Integer codebook IDs do not have a meaningful Euclidean interpolation just because they are called tokens. Continuous codec coordinates may be modeled with FM, but quantization and decoding need separate geometric and execution audits. The <a href="https://arxiv.org/html/2511.07820v4">SONIC paper</a> and <a href="https://github.com/NVlabs/GR00T-WholeBodyControl">official implementation</a> establish the relevant controller context; our work has checked offline formats, not run its learned motor encoder.</p>
-<h3 id="data-sources-have-different-jobs">Data sources have different jobs</h3>
-<p><a href="https://arxiv.org/html/2603.05993v1">Moving Through Clutter (MTC)</a> pairs embodiment-scaled VR locomotion with procedural scene geometry; v1 reports 348 trajectories across 145 scenes. It motivates learning the relationship between a constraint and an adaptation. Reading its paper does not qualify a local archive as MTC or establish robot executability.</p>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Data branch</th>
-<th>Available evidence</th>
-<th>Appropriate role</th>
-<th>Missing evidence</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Procedural box scenes + sphere motions</td>
-<td>Exact continuous geometric labels for a declared proxy</td>
-<td>Controlled representation, FM and checker experiments</td>
-<td>Human motion, perception and dynamics</td>
-</tr>
-<tr>
-<td>Kimodo-generated G1 references</td>
-<td>120 original clips / 29 ancestry groups; later 20 additional groups</td>
-<td>Body geometry, interval bounds and typed relation supervision</td>
-<td>Verified MTC provenance and qualified execution labels</td>
-</tr>
-<tr>
-<td>MTC-style aligned captures</td>
-<td>Literature motivation; no MTC training in this workspace</td>
-<td>Proposed geometry-induced adaptation pretraining</td>
-<td>Archive/license/export validation, alignment and quality gates</td>
-</tr>
-<tr>
-<td>Tracker rollouts</td>
-<td>Not collected by these experiments</td>
-<td>Future executability, correction and failure supervision</td>
-<td>Actual closed-loop outcomes</td>
-</tr>
-</tbody>
-</table></div>
-<p>The data model should preserve scene revisions and coordinate transforms; source ancestry and actor/session identity; original human and robot references; timestamps; sensor poses and visibility; measured versus reference state; tracker/version and command logs; and event/counterfactual provenance. Split source episodes and scene families <strong>before</strong> extracting overlapping windows. Nearby geometry variants and mirrored descendants must not cross the intended generalization boundary.</p>
-<p>A motion does not uniquely identify the room that produced it. Crouching can reflect a beam, a preference, or a different task. Motion-to-scene pretraining should therefore infer supported relations or uncertain scene hypotheses, rather than claim uniquely recoverable complete geometry. Likewise, a randomly mismatched scene–motion pair is not automatically a negative: the motion may remain feasible there.</p>
-</section><section class="chapter"><h2 id="flow-matching-carefully">Flow matching, carefully</h2>
-<h3 id="what-is-actually-learned">What is actually learned?</h3>
-<p>For a normalized continuous action chunk <strong>X₁</strong>, sample a source <strong>X₀</strong> and transport time <strong>τ</strong>. In our convention, noise is at zero and data at one:</p>
-<pre><code class="language-text">X₀ ~ N(0, I),     τ ~ Uniform(0, 1)
-Xτ = (1 − τ) X₀ + τ X₁
-u* = X₁ − X₀
-LFM = E[ ||vθ(Xτ, τ, C) − u*||² ]
+<div class="stats">
+  <div><b>414,813</b><span>certified imagined scenes for 33,045 motions</span></div>
+  <div><b>16</b><span>candidate whole-body plans every 0.16 s</span></div>
+  <div><b>17</b><span>arena scene families, 4 sealed</span></div>
+  <div><b>69%</b><span>of validation goals reached by the teacher</span></div>
+  <div><b>207 / 208</b><span>lidar student vs perfect-map teacher (of 252)</span></div>
+</div>
 
-Inference: dXτ/dτ = vθ(Xτ, τ, C), starting at the declared source.
-Euler:     Xτ+Δτ = Xτ + Δτ · vθ(Xτ, τ, C)
-</code></pre>
-<p><a href="https://arxiv.org/abs/2210.02747">Flow Matching for Generative Modeling</a> trains a vector field against a chosen probability path without simulating the learned ODE during each training example. The regression target belongs to sampled endpoint pairs; the learned field averages compatible conditional targets at a noisy state. The resulting marginal transport need not be a straight line for an individual generated sample. Independent noise/data pairing also does not, by itself, solve an optimal-transport coupling problem.</p>
-<p>The following derivations and design choices apply that setup to <strong>our proposed traversal system</strong>. They are not new benchmark results.</p>
-<h3 id="two-clocks-two-spaces">Two clocks, two spaces</h3>
-<p><strong>Transport time τ</strong> indexes the refinement of an entire motion representation. <strong>Physical time k</strong> indexes positions inside the resulting motion chunk. A velocity in action-representation space is not a joint velocity or a robot’s speed through the room. Sources use opposite τ conventions; the interpolation, target sign and integration direction must agree.</p>
-<div class="interactive" id="flow-demo"><div class="demo-heading"><div><span class="eyebrow">Interactive explanation · illustrative only</span><h3>Move the two clocks independently</h3></div><button id="reset-demo" type="button">Reset</button></div><div class="demo-grid"><div><svg id="transport-plot" viewBox="0 0 440 245" role="img" aria-label="Prescribed interpolation from noise samples to two action modes"></svg><label for="transport">Transport time τ <output id="transport-value">0.45</output></label><input id="transport" type="range" min="0" max="100" value="45"/><p>Points are two abstract action coordinates. Each point represents a whole candidate, not a body moving through space.</p></div><div><svg id="physical-plot" viewBox="0 0 440 245" role="img" aria-label="Robot progressing along a candidate path around an obstacle"></svg><label for="physical">Physical chunk progress k/H <output id="physical-value">0.35</output></label><input id="physical" type="range" min="0" max="100" value="35"/><p>The marker advances through a schematic room along one candidate path. This clock is independent of τ.</p></div></div><p class="caption">Left: hand-constructed training-pair interpolation, not an integrated learned field. Right: an illustrative route, not a humanoid rollout. Neither figure reports an experiment.</p></div>
+<main>
 
-<h3 id="why-generate-chunks-rather-than-one-action">Why generate chunks rather than one action?</h3>
-<p>A chunk can represent coordinated preparation, passage and recovery jointly. It can preserve distinct solutions where single-target regression would encourage an unhelpful average. But a horizon also commits the system to predictions made from aging observations. Generate the suffix that can still be changed, condition on the committed prefix, and retain measured state rather than substituting a perfect reference history.</p>
-<p>FM is deterministic <strong>conditional on its initial sample and conditioning</strong>; different initial samples provide a distribution of outputs. Multiple outputs are useful only if they are valid, sufficiently diverse in behavior, and selected using information available at deployment. Best-of-K with ground-truth hindsight is an evaluation ceiling, not the performance of the actual selector.</p>
-<h3 id="fm-versus-diffusion-and-other-policies">FM versus diffusion and other policies</h3>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Choice</th>
-<th>Useful property</th>
-<th>Comparison that matters here</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Flow matching</td>
-<td>Direct velocity regression along a specified probability path; continuous action chunks</td>
-<td>Validity and coverage versus actual total latency, with declared source and solver</td>
-</tr>
-<tr>
-<td>Diffusion policy</td>
-<td>Conditional multimodal action generation with denoising objectives and samplers</td>
-<td>Matched data, conditioning access, tuning and wall-clock budget; diffusion can also use deterministic samplers</td>
-</tr>
-<tr>
-<td>Discrete autoregression</td>
-<td>Explicit token likelihood and sequential generation</td>
-<td>Quantization fidelity, sequence cost and controller compatibility</td>
-</tr>
-<tr>
-<td>Retrieval + editing</td>
-<td>Strong use of a finite qualified motion library</td>
-<td>Same tracker, geometry access, selection budget and editing cost</td>
-</tr>
-<tr>
-<td>Optimization / MPC</td>
-<td>Direct use of modeled objectives and constraints</td>
-<td>Dynamics fidelity, initialization, feasible support and deadline behavior</td>
-</tr>
-<tr>
-<td>Reactive RL policy</td>
-<td>Can learn feedback and recovery in its training distribution</td>
-<td>Task coverage, demonstrations, simulation cost and transfer</td>
-</tr>
-</tbody>
-</table></div>
-<p>FM is an important robotics approach, not the only mainstream route and not automatically safer or faster. <a href="https://diffusion-policy.cs.columbia.edu/">Diffusion Policy</a> established action diffusion with receding-horizon control. <a href="https://arxiv.org/abs/2501.09747">FAST</a> studies compressed action tokenization for autoregressive policies. A traversal contribution must improve an operational comparison rather than simply replace one generative loss with another.</p>
-<h3 id="what-do-robotics-systems-add-to-the-basic-objective">What do robotics systems add to the basic objective?</h3>
-<p><a href="https://arxiv.org/html/2410.24164v1">π₀</a> combines a pretrained vision-language backbone with a continuous action expert. Observation features and action slots play different roles; action chunks interact through attention. This supports transferring semantics into control, but does not establish a whole-body clutter solution. <a href="https://github.com/Physical-Intelligence/openpi">OpenPI</a> also distinguishes flow-based models from the autoregressive π₀-FAST branch: “VLA” does not imply one action representation.</p>
-<p><a href="https://arxiv.org/html/2508.11002v1">3D FlowMatch Actor</a> is a useful manipulation reference for relating action and scene features in common 3D coordinates. Our analogous question is whether body-sweep-relative information survives compression. Its manipulation results cannot be treated as humanoid traversal evidence.</p>
-<p><a href="https://arxiv.org/html/2609.18732v1">PASSAGE</a> is a close scene-conditioned humanoid reference: it predicts continuous motion chunks from history, a destination and a multi-layer map, then uses a perceptive tracker. <a href="https://arxiv.org/html/2609.09158v1">TANGO</a> connects a whole-body VLA action expert to SONIC, using execution-filtered reference supervision. Its predicted motion references should not be relabeled as directly predicted native controller tokens. These precedents mean our contribution cannot be “FM + scene conditioning + a tracker” alone.</p>
-<h3 id="source-distributions-output-charts-and-solver-error">Source distributions, output charts and solver error</h3>
-<p>For a true temporal motion representation, a proposed correlated source could be</p>
-<pre><code class="language-text">X₀,F = μ(C) + LT ε,       LT LTᵀ = KT,       ε ~ N(0, I)
-</code></pre>
-<p>where <strong>F</strong> is the free suffix. A temporal kernel can encode smoother source samples, but should preserve enough support for rapid stepping and posture changes. Train with the source actually used at inference. Initializing from the previous prediction after training only on independent Gaussian noise changes the sampling distribution; it is not a free warm start. <a href="https://arxiv.org/abs/2607.14424">ConFlow</a> provides relevant constrained-generation and structured-source context, so correlated sources should be treated as a comparison, not assumed novelty.</p>
-<p>Our current three-control proxy has <strong>no learned physical-time sequence axis</strong>. A temporal-source study becomes meaningful only after defining a motion-chunk representation. For now, the bounded-chart experiment isolates a simpler issue: a better numerical solution can converge more accurately to an invalid model output. Euler256 improved numerical agreement but reduced valid yield. Tanh decoding fixed control bounds, while simple clipping was equally strong on the primary feasibility comparison.</p>
-<p>Position, orientation and joint coordinates require explicit scaling. Straight interpolation between raw rotations can leave the rotation manifold; a continuous representation still needs a valid decoder. Tanh can enforce a box domain but cannot enforce collision freedom, contact or torque feasibility. More solver evaluations increase cost and reduce one source of numerical error; they do not repair a misspecified conditional distribution.</p>
-<h3 id="constraints-belong-to-a-declared-object">Constraints belong to a declared object</h3>
-<p>Under the noise-at-zero convention, a one-step endpoint estimate is</p>
-<pre><code class="language-text">X̂₁ = Xτ + (1 − τ) vθ(Xτ, τ, C).
-</code></pre>
-<p>It is an estimate, not an exact future sample. Early in transport, its mean can lie between two valid modes. Penalizing every noisy intermediate state as though it were a physical trajectory may distort the learned distribution. A proposed geometry regularizer should state whether it acts on this estimate, a decoded terminal sample, or an executed trajectory—and account for the cost of obtaining gradients through the decoder.</p>
-<p><a href="https://arxiv.org/abs/2511.08425">HardFlow</a> investigates terminal constrained sampling through trajectory optimization; <a href="https://arxiv.org/abs/2504.08661">SafeFlow</a> uses control-barrier ideas; <a href="https://arxiv.org/abs/2506.02955">UniConFlow</a> studies constrained flow-based planning. Their modeled constraints and assumptions do not automatically cover our humanoid contact dynamics. Our completed work instead uses explicit terminal-domain handling and geometric checking; it has not trained a constraint-aware humanoid FM.</p>
-<h3 id="delay-and-committed-actions">Delay and committed actions</h3>
-<p>A robot continues moving while a new chunk is computed. Train over realistic committed-prefix lengths, mask the loss to editable coordinates, and measure queueing, communication, perception, generation and checking. <a href="https://arxiv.org/html/2512.05964v1">Training-Time Action Conditioning</a> is directly relevant to modeling delayed prefixes. Demonstration prefixes remain cleaner than prefixes produced by an imperfect running policy; that gap needs evaluation.</p>
-<p>Report network-function evaluations, but optimize the <strong>complete useful-output cost</strong>. In our CPU proxy, scene conditioning took much longer than the tiny FM integrator. A faster sampler alone would miss much of that implementation’s cost.</p>
-</section><section class="chapter"><h2 id="experiments-and-findings">Experiments and findings</h2>
-<p>The ledger below covers all <strong>11 substantive study blocks</strong> in this workspace, including negative results, audits and the latest hybrid check. Tiny smoke runs are implementation checks, not additional scientific trials. Original reports are available as plain-text evidence notes; they retain historical conclusions so later updates can be traced.</p>
-<div class="filters" role="group" aria-label="Filter experiments"><button class="active" type="button" data-filter="All" aria-pressed="true">All 11</button><button type="button" data-filter="Representation" aria-pressed="false">Representation</button><button type="button" data-filter="Generation" aria-pressed="false">Generation</button><button type="button" data-filter="Native geometry" aria-pressed="false">Native geometry</button><button type="button" data-filter="Checking" aria-pressed="false">Checking</button><span id="filter-status" aria-live="polite">11 studies</span></div>
+<!-- ============================================================ VIDEO -->
+<section class="sec" id="video">
+  <div class="sec-head"><p class="eyebrow">The whole story</p><h2>Fifteen minutes, every idea explained</h2>
+    <p class="lede">A narrated walk-through for first-time audiences: the problem, learned hallucination, flow matching from scratch, SceneFlow, the teacher's planning, the arena, the lidar student and the road to the real robot. English captions are built in.</p></div>
+  <div class="player">
+    <video id="film" controls preload="metadata" poster="home/media/two_flows_poster.jpg" playsinline>
+      <source src="home/media/two_flows_720.mp4" type="video/mp4">
+      <track kind="captions" src="home/media/two_flows.vtt" srclang="en" label="English">
+    </video>
+    <ol class="chapters" aria-label="Video chapters">
+      <li><button type="button" data-t="0">0:00<span>Best runs</span></button></li>
+      <li><button type="button" data-t="40">0:40<span>The problem</span></button></li>
+      <li><button type="button" data-t="74">1:14<span>Learning from hallucination</span></button></li>
+      <li><button type="button" data-t="124">2:04<span>Two flows</span></button></li>
+      <li><button type="button" data-t="174">2:54<span>Flow matching</span></button></li>
+      <li><button type="button" data-t="237">3:57<span>SceneFlow: data engine</span></button></li>
+      <li><button type="button" data-t="285">4:45<span>SceneFlow: the model</span></button></li>
+      <li><button type="button" data-t="344">5:44<span>Watch it imagine</span></button></li>
+      <li><button type="button" data-t="388">6:28<span>CycleFlow</span></button></li>
+      <li><button type="button" data-t="425">7:05<span>Teacher: in &amp; out</span></button></li>
+      <li><button type="button" data-t="476">7:56<span>How a plan is made</span></button></li>
+      <li><button type="button" data-t="534">8:54<span>Guidance &amp; the loop</span></button></li>
+      <li><button type="button" data-t="592">9:52<span>The arena</span></button></li>
+      <li><button type="button" data-t="652">10:52<span>Results &amp; failures</span></button></li>
+      <li><button type="button" data-t="707">11:47<span>The lidar student</span></button></li>
+      <li><button type="button" data-t="766">12:46<span>Toward the real robot</span></button></li>
+      <li><button type="button" data-t="828">13:48<span>Principles</span></button></li>
+    </ol>
+  </div>
+  <p class="note">Download the <a href="home/media/two_flows_720.mp4" download>720p video (39 MB)</a> or the <a href="home/media/two_flows.vtt">captions (.vtt)</a>. All robot footage is Isaac Lab closed-loop physics replayed in MuJoCo; nothing shown has run on hardware.</p>
+</section>
 
-<div class="study-grid"><article class="study" id="study-pilot" data-track="Representation">
-<div class="study-meta"><span class="study-number">01</span><span>Representation</span><span class="badge">Negative result</span></div>
-<h3>Does relation supervision improve compressed scene decisions?</h3><p class="result">False-safe rate increased from 10.96% to 14.98%; safe recall increased from 77.44% to 84.22%. Paired family-macro difference: +5.81 percentage points [2.54, 9.20].</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Can a 32-scalar scene code retain traversability better when compatibility gradients reach its encoder?</dd><dt>Design & population</dt><dd>432 procedural scenes in 144 families; 288/72/72 train/validation/test scenes. Three seeds, matched networks and schedules, frozen encoders and fresh probes. Test: 864 pairs, 505 below the clearance requirement.</dd><dt>What this supports</dt><dd>The tested relation objective traded safety classification for recall. It did not establish superior task-preserving compression.</dd><dt>What it does not establish</dt><dd>False-safe means false accepts / all unsafe candidates. Family-macro and pooled rates have different weighting. Proxy geometry, not execution.</dd><dt>Decision it prompted</dt><dd>Separate the effects of objective, spatial access and representation capacity.</dd></dl>
-<a class="evidence-link" href="evidence/notes/PILOT_V1_RESULT.txt">Read the original result note ↗</a></details></article><article class="study" id="study-boundary" data-track="Representation">
-<div class="study-meta"><span class="study-number">02</span><span>Representation</span><span class="badge">Diagnostic</span></div>
-<h3>Can a stronger global readout recover the missing geometry?</h3><p class="result">Reconstruction/MSE accepted 22.27% unsafe candidates; relation/Gaussian 19.63%; raw-grid/MSE 28.51%. Local trilinear querying accepted 0/518 unsafe candidates.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Is the problem the compressed representation, regression objective, or how geometry is read?</dd><dt>Design & population</dt><dd>Three scene inputs × three objectives × three seeds: 27 fits. New test draw: 48 families, 144 scenes, 1,728 fixed-bank motion pairs. Accept the highest-ranked 518 candidates.</dd><dt>What this supports</dt><dd>Spatially addressed information was useful where global MLP readers struggled. Raw input size alone did not resolve the bottleneck.</dd><dt>What it does not establish</dt><dd>Here risk is unsafe / accepted, unlike the pilot. Raw and compressed readers have different parameter counts. Zero observed errors is not a universal guarantee.</dd><dt>Decision it prompted</dt><dd>Test local access with matched inputs, capacity and relative-position information.</dd></dl>
-<a class="evidence-link" href="evidence/notes/BOUNDARY_V2_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-spatial" data-track="Representation">
-<div class="study-meta"><span class="study-number">03</span><span>Representation</span><span class="badge">Supported locally</span></div>
-<h3>Which local information actually helps attention?</h3><p class="result">At 30% acceptance, unsafe fractions were 7.08%, 10.42%, and 0%, respectively. Deterministic interpolation also had 0/518.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Do relative spatial coordinates matter under the same local-read budget?</dd><dt>Design & population</dt><dd>Nine fits: uniform pooling, attention without relative XYZ, and attention with XYZ; 6,337 parameters each. Each sphere segment accesses 17 samples × eight grid vertices. Fresh 48-family test draw.</dd><dt>What this supports</dt><dd>This local attention design benefited from spatial correspondence and outperformed uniform pooling. It did not beat the analytic reference.</dd><dt>What it does not establish</dt><dd>The method still accesses the full 1,400-value grid. It is not a 32-scalar-only representation, nor proof that attention is necessary.</dd><dt>Decision it prompted</dt><dd>Measure additional geometric access and conditioning cost, not just token dimensions.</dd></dl>
-<a class="evidence-link" href="evidence/notes/SPATIAL_FLOW_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-proxy" data-track="Generation">
-<div class="study-meta"><span class="study-number">04</span><span>Generation</span><span class="badge">Supported locally</span></div>
-<h3>The first conditional flow-matching generator</h3><p class="result">Raw valid-candidate yield improved from 50.82% to 54.52%; scenes with a valid candidate from 85.19% to 85.88%. Uniform random sampling yielded 37.20% valid candidates. About 27% of local-FM controls left the declared domain.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Does local compatibility information improve the distribution of generated motions?</dd><dt>Design & population</dt><dd>Six fits, three seeds per arm, 2,000 updates each. Global scene code versus code plus 12 frozen anchor scores. Fixed 96-control reference pool, 32 generated candidates per scene, Euler16, another fresh 144-scene test draw.</dd><dt>What this supports</dt><dd>Local conditioning improved this small generator, but domain violations exposed a separate output-parameterization problem.</dd><dt>What it does not establish</dt><dd>Outputs are crouch, yaw and lateral shift. Targets are geometry-filtered synthetic controls, not human demonstrations or SONIC tokens. Navigation direction is fixed.</dd><dt>Decision it prompted</dt><dd>Compare bounded coordinates with simple clipping before changing the generative objective.</dd></dl>
-<a class="evidence-link" href="evidence/notes/SPATIAL_FLOW_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-bounded" data-track="Generation">
-<div class="study-meta"><span class="study-number">05</span><span>Generation</span><span class="badge">Mixed result</span></div>
-<h3>Does better integration make motions more feasible?</h3><p class="result">Valid yield: original Euler16 56.68%; Euler256 52.89%; clipped Euler16 71.69%; tanh FM 71.67%. More steps improved agreement with a Heun numerical reference while increasing domain violations.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Are invalid controls a solver problem or an output-distribution problem?</dd><dt>Design & population</dt><dd>Three new tanh-coordinate fits; 33 model/solver/seed evaluations on 48 new families. Compare original FM, terminal clipping and a bounded chart. Retain the same conditioning and candidate count.</dd><dt>What this supports</dt><dd>Numerical accuracy and task feasibility are distinct. Bounded training did not establish a yield advantage over clipping: difference −0.03 pp [−1.22, 1.18].</dd><dt>What it does not establish</dt><dd>Tanh improved some proxy-cost/diversity diagnostics, not demonstrated navigation. The numerical reference is not an analytic solution. These percentages use a different test draw from the first FM experiment.</dd><dt>Decision it prompted</dt><dd>Keep clipping as a strong baseline; avoid interpreting a legal control range as learned collision safety.</dd></dl>
-<a class="evidence-link" href="evidence/notes/BOUNDED_FLOW_RESULT_zh.txt">Read the original result note ↗</a><figure><a href="assets/bounded_comparison.png"><img src="assets/bounded_comparison.png" alt="Measured bounded-output comparison; definitions and uncertainty are in the result note." loading="lazy"/></a><figcaption>Measured bounded-output comparison; definitions and uncertainty are in the result note. Click to inspect full size.</figcaption></figure></details></article><article class="study" id="study-native" data-track="Native geometry">
-<div class="study-meta"><span class="study-number">06</span><span>Native geometry</span><span class="badge">Audit completed</span></div>
-<h3>Can the reference corpus support native-body supervision?</h3><p class="result">USD body positions agree within 5.49e−7 m; mesh envelopes cover the audited vertices. Initially 169/240 scenes were continuously certified, 71 unresolved. 93/120 source clips violate joint limits. SONIC schema, joint-order and packing checks pass.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Are body geometry, coordinate frames, references and SONIC formats trustworthy enough for later learning?</dd><dt>Design & population</dt><dd>Read-only inventory and kinematic audits followed by USD re-extraction: 120 Kimodo references, 25,335 frames, 29 ancestry groups, 45 collision shapes. Check 1,016,604 mesh vertices and offline reference packing.</dd><dt>What this supports</dt><dd>The corpus supports typed geometric relations. An offline reference-format test is not a learned native token or execution result.</dd><dt>What it does not establish</dt><dd>This is generated Kimodo data, not verified MTC. Authored mesh envelopes are not a physics-cooked collision audit. Unknown outer-envelope overlaps are not collision labels.</dd><dt>Decision it prompted</dt><dd>Recover rejected obstacle candidates, refine interval bounds and retain separate geometric, kinematic and execution labels.</dd></dl>
-<a class="evidence-link" href="evidence/notes/NATIVE_REFERENCE_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-events" data-track="Native geometry">
-<div class="study-meta"><span class="study-number">07</span><span>Native geometry</span><span class="badge">Mixed result</span></div>
-<h3>Are near-boundary frames the best learning signal?</h3><p class="result">With attention, witness accepts: uniform 7.06%, low-clearance 6.32%, boundary 8.89%. Direct geometry at the same 16 timestamps has 1/1,350 witnessed false accepts and five unknown accepts. Interval refinement certifies all 240 original scenes.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Does emphasizing extreme moments improve learned compatibility?</dd><dt>Design & population</dt><dd>Relabel all 27,000 motion/obstacle pairs: 11,346 clear, 15,066 primitive witnesses, 588 unknown. Eighteen fits cross three class-matched samplers with two pooling methods. Evaluate 4,500 development pairs, accepting 1,350.</dd><dt>What this supports</dt><dd>Boundary oversampling worsened this implementation. A five-frame torso overlap explains a separate temporal-read failure; it does not validate the sampler.</dd><dt>What it does not establish</dt><dd>This is an inspected development set. Unknowns remain separate. Original joint-limit violations remain even after scene certificates improve.</dd><dt>Decision it prompted</dt><dd>Distinguish event exposure during training from choosing informative timestamps at inference.</dd></dl>
-<a class="evidence-link" href="evidence/notes/NATIVE_EVENT_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-structure" data-track="Native geometry">
-<div class="study-meta"><span class="study-number">08</span><span>Native geometry</span><span class="badge">Mixed result</span></div>
-<h3>Body aggregation versus temporal query allocation</h3><p class="result">Per-body BCE changes witness accepts from 7.06% to 6.40%, with the paired interval crossing zero; distance regression worsens them to 12.35%. Motion-bound reading detects 2,550/2,596 witnesses versus uniform&#x27;s 2,479.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Is risk lost through pooling over body parts, or through missing short time intervals?</dd><dt>Design & population</dt><dd>Nine new fits plus six frozen baselines; four temporal readers at 16 frames × 45 shapes on the same 4,500 development pairs. Include a same-starting-grid static control.</dd><dt>What this supports</dt><dd>Adaptive temporal reads have clearer support than the tested body-loss changes. Detecting a witness, ranking a candidate and certifying clearance are different tasks.</dd><dt>What it does not establish</dt><dd>Motion-bound still misses the known five-frame event at budget16. Only 309/4,500 candidates receive a continuous certificate; a low-risk ranking is not equivalent to certification.</dd><dt>Decision it prompted</dt><dd>Measure coverage, abstention and actual stopping cost across budgets on new ancestry groups.</dd></dl>
-<a class="evidence-link" href="evidence/notes/NATIVE_STRUCTURE_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-budget" data-track="Native geometry">
-<div class="study-meta"><span class="study-number">09</span><span>Native geometry</span><span class="badge">Supported locally</span></div>
-<h3>Does adaptive reading transfer to new source groups?</h3><p class="result">At64, motion-bound certifies 1,666/4,500 versus static time-gap&#x27;s 829, a +18.60 pp gain [15.24, 22.02]. It detects all 2,450 known witnesses and leaves 384 unresolved. Mean stopped reads fall from 29.56 to 19.38.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Can bounded reading improve certification coverage without hiding unresolved candidates?</dd><dt>Design & population</dt><dd>Freeze 20 additional Kimodo ancestry groups: 20 clips, 3,930 frames, 4,500 pairs. Compare 8/16/32/64 queries and run real early stopping. Keep the old development cohort separate.</dd><dt>What this supports</dt><dd>The certificate/abstention interface transfers to additional groups of the same generated corpus.</dd><dt>What it does not establish</dt><dd>At16, endpoint reading detects more 1–5-frame witnesses: 107/124 versus 95/124. Seventeen new clips retain joint-limit violations. The known five-frame case is detected by motion-bound at query24, not retroactively at16.</dd><dt>Decision it prompted</dt><dd>Connect frozen FM outputs to the checker and retain exact continuous geometry as a strong baseline.</dd></dl>
-<a class="evidence-link" href="evidence/notes/NATIVE_BUDGET_RESULT_zh.txt">Read the original result note ↗</a><figure><a href="assets/budget_results.png"><img src="assets/budget_results.png" alt="Measured new-source budget curves; the witness-detection panels begin at 80%, not zero." loading="lazy"/></a><figcaption>Measured new-source budget curves; the witness-detection panels begin at 80%, not zero. Click to inspect full size.</figcaption></figure></details></article><article class="study" id="study-integration" data-track="Checking">
-<div class="study-meta"><span class="study-number">10</span><span>Checking</span><span class="badge">Mixed result</span></div>
-<h3>Does query efficiency improve frozen-FM output?</h3><p class="result">Motion-bound early stopping: 9,147 valid accepts, 357/432 valid returns, 19.65 point queries per candidate. Exact: 9,962 accepts and 375/432 returns. Assembled cost is about 48.6 ms per valid return for both.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Does a budgeted checker improve end-to-end valid yield per unit compute?</dd><dt>Design & population</dt><dd>Three frozen fits, 48 fresh procedural families, 144 scenes, 32 candidates each: 13,824 candidates. Preserve original 21-knot paths. Compare 72 method/budget/seed cells with independent continuous replay.</dd><dt>What this supports</dt><dd>Fewer queries alone did not establish a pipeline advantage; the exact checker retained more outputs.</dd><dt>What it does not establish</dt><dd>The 432 evaluations repeat 144 scenes across models. Sampled-only checking at16 actually selects seven invalid motions. A float32/float64 geometry mismatch was corrected with all arms rerun; decisions were unchanged.</dd><dt>Decision it prompted</dt><dd>Send only unresolved candidates to fresh exact checking, with identical output sets as the acceptance criterion.</dd></dl>
-<a class="evidence-link" href="evidence/notes/FM_CHECKER_RESULT_zh.txt">Read the original result note ↗</a></details></article><article class="study" id="study-hybrid" data-track="Checking">
-<div class="study-meta"><span class="study-number">11</span><span>Checking</span><span class="badge">Engineering gain</span></div>
-<h3>Can exact fallback retain yield while reducing cost?</h3><p class="result">Every arm accepts the same 9,962 candidates and makes identical selections on 375/432 valid returns. Uniform16 + fallback checks 6,419 candidates exactly. Checker cost: 38.147 → 20.136 ms per valid return; assembled pipeline: 58.603 → 40.592 ms.</p>
-<details><summary>Design, interpretation &amp; evidence</summary><dl><dt>Question</dt><dd>Can cheap certificates remove enough exact work to pay for themselves?</dd><dt>Design & population</dt><dd>Reuse the same 13,824 candidates; seven arms × three models × three shuffled timing repetitions =63 records. Recompute geometry on every invocation; no truth lookup in operational fallback.</dd><dt>What this supports</dt><dd>A simple hybrid is a provisional lower-cost validation option. Motion-bound16 reduces exact work further but its prefilter overhead makes it slower here.</dd><dt>What it does not establish</dt><dd>Reused development bank; three descriptive timing repetitions. Common generation-stage timings are reused, not remeasured end-to-end. Raw FM validity remains 72.06%.</dd><dt>Decision it prompted</dt><dd>Freeze the provisional choice for replication and diagnose generation failures before adding new learned mechanisms.</dd></dl>
-<a class="evidence-link" href="evidence/notes/HYBRID_CHECKER_RESULT_zh.txt">Read the original result note ↗</a></details></article></div>
+<!-- ============================================================ IDEA -->
+<section class="sec" id="idea">
+  <div class="sec-head"><p class="eyebrow">01 · The problem</p><h2>Navigation is a whole-body problem</h2>
+    <p class="lede">Most robots plan on a flat map: every cell free or blocked, and a path through the free cells. A humanoid is not a disk on a floor plan. It can duck under a beam, pull its arms in to slip through a gap, or turn sideways. The question is not only <em>where</em> to walk, but <em>how the whole body should move, and when</em>. Learning that needs thousands of scenes paired with the whole-body motion that gets through each one, and collecting or hand-designing those pairs does not scale.</p></div>
+  <figure class="fig wide"><img src="home/img/problem.webp" width="1920" height="845" loading="lazy" alt="Left: a flat 2-D occupancy map with a path. Right: the G1 ducking under a 1.25 m beam and fitting a 0.55 m gap with its arms in."></figure>
 
-<h3 id="read-the-latest-cost-result-correctly">Read the latest cost result correctly</h3>
-<figure><img src="assets/hybrid_results.png" alt="Seven hybrid-checker arms have identical validity; uniform16 has the lowest measured checker and assembled pipeline cost in this run." loading="lazy" width="2700" height="900"/><figcaption>Measured proxy experiment. Error bars are min/max across three repetitions, not confidence intervals. The assembled pipeline adds retained conditioning/FM/decoding timings; it is not a newly measured end-to-end robot latency. <a href="evidence/notes/HYBRID_CHECKER_RESULT_zh.txt">Detailed report</a> · <a href="assets/hybrid_results.pdf">PDF</a>.</figcaption></figure>
+  <div class="sec-head" id="lfh"><p class="eyebrow c-amber">01 · The idea</p><h2>Learning from hallucination</h2>
+    <p class="lede">Motion is plentiful: human motion capture, text-to-motion models, the robot's own skills. So we flip the problem. Start from a motion and <b>imagine the obstacles that make exactly that motion necessary</b>. The key word is <em>necessary</em>: next to the real motion we keep what the body would have done otherwise (here, walking upright). Only an obstacle that the easy alternative hits, and the real motion clears, explains the motion.</p></div>
+  <div class="widget lfh" id="w-lfh" data-src="home/data/lfh.json">
+    <div class="lfh-stage">
+      <img class="lfh-img" src="home/img/lfh_duck.webp" width="1440" height="480" alt="A recorded G1 ducking walk shown as five overlaid frames.">
+      <img class="lfh-img ghost" src="home/img/lfh_ghost.webp" width="1440" height="480" alt="" aria-hidden="true">
+      <canvas class="lfh-canvas" aria-hidden="true"></canvas>
+    </div>
+    <div class="lfh-panel">
+      <label class="slider"><span>Imagined beam: underside at <b class="v-z">1.12 m</b></span><input type="range" min="0.70" max="1.60" step="0.01" value="1.12" aria-label="Beam underside height in metres"></label>
+      <label class="check"><input type="checkbox" class="v-ghost" checked> show the counterfactual (walk upright)</label>
+      <div class="verdict">
+        <div><span class="who c-blue">upright walk</span><span class="pillx v-up">hits</span></div>
+        <div><span class="who">real duck</span><span class="pillx v-dk">clears</span></div>
+        <p class="v-text">necessary — kept</p>
+      </div>
+      <p class="small">Drag the beam. Both clear: it explains nothing. The duck hits too: impossible. Only <b>upright hits, duck clears</b> certifies the pair. Every imagined scene is checked exactly against 45 body capsules.</p>
+    </div>
+  </div>
 
-<p>Uniform16 + fallback retains all exact decisions while reducing newly measured checker cost from 38.147 to 20.136 ms per valid return. Assembled pipeline means are 58.603 and 40.592 ms; exact timing varies substantially. The raw generator still produces only 9,962/13,824 valid candidates. Filtering cannot create a missing feasible action, and the 57/432 scene–model evaluations with no valid candidate remain unresolved by generation.</p>
-<h3 id="three-results-that-changed-the-research-plan">Three results that changed the research plan</h3>
-<p><strong>Representation must preserve decisions, not just averages.</strong> Reconstruction quality and relation supervision alone did not ensure safer choices. Local spatial correspondence helped, but deterministic geometry remained a strong baseline. The evidence favors measuring which decisions survive a representation rather than assuming a task-related loss solves compression.</p>
-<p><strong>Critical-event learning and event observation are separate.</strong> A five-frame torso collision escaped uniform reads. Increasing boundary-frame exposure during training nevertheless worsened the learned reader. The existence of an important event does not prove a particular sampler will learn it, or that deployment will observe it.</p>
-<p><strong>Computation should be measured per useful result.</strong> The first certified FM integration reduced queries but sacrificed output coverage. Exact fallback restored coverage. A simpler uniform prefilter then outperformed a more selective adaptive implementation in total cost. Query counts, network calls and model size are incomplete measures of efficiency.</p>
-</section><section class="chapter"><h2 id="critical-events-and-attention">Critical events and attention</h2>
-<h3 id="the-concrete-missed-event">The concrete missed event</h3>
-<p>Reference <strong>00623 / obstacle 52</strong> contains five source frames with a torso primitive overlap. A 16-frame uniform read missed all five; its minimum observed proxy clearance was about 0.182 m. Motion-bound reading also missed the event at budget16, even though its ranking rejected the candidate. A later budget study found its first witness at query24; endpoint reading found one at query11. The later result does not erase the original miss.</p>
-<figure><img src="assets/missed-event.png" alt="Archived diagnostic of the five-frame torso overlap missed by uniform time sampling." loading="lazy"/><figcaption>Measured native-reference diagnostic, not a robot execution trace. A negative primitive margin is evidence of overlap in the declared model, not a measured physical penetration depth. <a href="evidence/notes/NATIVE_EVENT_RESULT_zh.txt">Event study</a>.</figcaption></figure>
+  <div class="sec-head" id="two-flows"><p class="eyebrow c-teal">01 · The framework</p><h2>Two flows</h2>
+    <p class="lede"><b class="c-amber">Flow 1, SceneFlow</b>, goes from motion to scene: given a motion, it samples many different scenes that make the motion necessary. <b class="c-teal">Flow 2, the flow planner</b>, goes back: given a scene and a goal, it samples the whole-body motion that gets there. Flow 1 manufactures training data for flow 2.</p></div>
+  <figure class="fig diagram">
+    <svg viewBox="0 0 1200 500" role="img" aria-labelledby="tf-title tf-desc">
+      <title id="tf-title">The two flows</title><desc id="tf-desc">Motion flows to scene through SceneFlow; scene flows back to motion through the flow planner.</desc>
+      <defs>
+        <marker id="ah-a" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e8892b"/></marker>
+        <marker id="ah-t" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#13897f"/></marker>
+        <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1a2233" flood-opacity=".10"/></filter>
+      </defs>
+      <path id="arc1" d="M360 170 C 520 30, 680 30, 840 170" fill="none" stroke="#e8892b" stroke-width="7" marker-end="url(#ah-a)"/>
+      <path id="arc2" d="M840 330 C 680 470, 520 470, 360 330" fill="none" stroke="#13897f" stroke-width="7" marker-end="url(#ah-t)"/>
+      <g fill="#e8892b"><circle r="7"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#arc1"/></animateMotion></circle><circle r="7"><animateMotion dur="3s" begin="1s" repeatCount="indefinite"><mpath href="#arc1"/></animateMotion></circle><circle r="7"><animateMotion dur="3s" begin="2s" repeatCount="indefinite"><mpath href="#arc1"/></animateMotion></circle></g>
+      <g fill="#13897f"><circle r="7"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#arc2"/></animateMotion></circle><circle r="7"><animateMotion dur="3s" begin="1s" repeatCount="indefinite"><mpath href="#arc2"/></animateMotion></circle><circle r="7"><animateMotion dur="3s" begin="2s" repeatCount="indefinite"><mpath href="#arc2"/></animateMotion></circle></g>
+      <text x="600" y="40" class="svg-h" fill="#e8892b" text-anchor="middle">Flow 1 · SceneFlow</text>
+      <text x="600" y="76" class="svg-m" text-anchor="middle">p( scene | motion )</text>
+      <text x="600" y="455" class="svg-h" fill="#13897f" text-anchor="middle">Flow 2 · flow planner</text>
+      <text x="600" y="491" class="svg-m" text-anchor="middle">p( motion | scene, goal )</text>
+      <g filter="url(#sh)"><rect x="40" y="100" width="300" height="300" rx="22" fill="#fff"/><rect x="860" y="100" width="300" height="300" rx="22" fill="#fff"/></g>
+      <text x="64" y="138" class="svg-k">MOTION</text><text x="884" y="138" class="svg-k">SCENE</text>
+      <image href="home/img/g1_side_duck.webp" x="95" y="160" width="190" height="225"/>
+      <g>
+        <path d="M900 380 h60 v-170 h-60z" fill="#d9473b"/><path d="M960 380 l26 -20 v-170 l-26 20z" fill="#a8362c"/><path d="M900 210 l26 -20 h60 l-26 20z" fill="#e8665b"/>
+        <path d="M985 240 h150 v-26 h-150z" fill="#e8892b"/><path d="M1135 240 l18 -14 v-26 l-18 14z" fill="#c26c19"/><path d="M985 214 l18 -14 h150 l-18 14z" fill="#f4a24f"/>
+        <path d="M1050 385 h70 v-70 h-70z" fill="#d9473b"/><path d="M1120 385 l22 -17 v-70 l-22 17z" fill="#a8362c"/><path d="M1050 315 l22 -17 h70 l-22 17z" fill="#e8665b"/>
+      </g>
+      <rect x="390" y="228" width="420" height="44" rx="22" fill="#141a26"/><text x="600" y="257" text-anchor="middle" class="svg-pill">certified pairs → training data for flow 2</text>
+    </svg>
+  </figure>
+  <div class="pipeline">
+    <div class="pnode b-indigo"><b class="c-indigo">Student plan</b><span>same network, map built from its own lidar</span></div>
+    <div class="parrow dash" aria-hidden="true"></div>
+    <div class="pnode b-teal"><b class="c-teal">Teacher plan</b><span>1 s of whole-body motion from a perfect map, replanned every 0.16 s</span></div>
+    <div class="parrow" aria-hidden="true"></div>
+    <div class="pnode b-slate"><b class="c-slate">SONIC tracker</b><span>frozen · plan → joint targets at 50 Hz · never sees the scene</span></div>
+    <div class="parrow" aria-hidden="true"></div>
+    <div class="pnode b-ink"><b>Physics</b><span>Isaac Lab · G1, 29 joints · 200 Hz</span></div>
+  </div>
+  <p class="center small">Everything is measured in the <a href="#arena">G1 Traverse Arena</a>, on scenes none of these models was trained on.</p>
+</section>
 
-<h3 id="certify-witness-or-remain-unresolved">Certify, witness, or remain unresolved</h3>
-<p>For endpoint clearances <strong>dₐ, dᵦ</strong> and a valid bound <strong>B</strong> on body motion along an interval, the 1-Lipschitz distance relation yields a continuous lower bound:</p>
-<pre><code class="language-text">lower[a,b] = (dₐ + dᵦ − B[a,b]) / 2
-</code></pre>
-<p>The bound uses accumulated motion, not just endpoint displacement: a body can leave and return. Accept only if every required body/interval is certified above the margin. Reject a witnessed prohibited overlap. Otherwise refine, fall back to a stronger checker, or abstain. A negative lower bound indicates inability to certify; it is not proof of collision.</p>
-<p>For native meshes, separation of a verified outer envelope can certify separation, but envelope overlap does not prove the underlying mesh collides. This asymmetry is why our native labels explicitly retain unknowns. The proxy’s analytic exact checker and the native-body conservative checker have different label semantics.</p>
-<h3 id="a-proposed-attention-mechanism">A proposed attention mechanism</h3>
-<p>Keep a coarse global route context, then query scene patches relative to the <strong>swept volume of the candidate body</strong>, not only joint centers. A potential score for physical step k, body b and scene patch j is:</p>
-<pre><code class="language-text">score(k,b,j) = Q(hkb)ᵀ K(fj) / √d
-             + β(relative position, normal, time offset, visibility, observation age)
-</code></pre>
-<p>Body interactions and temporal interactions must coordinate the result: moving the head away from a beam should not place a shoulder into a wall. Retain a representation of observed free space, occupied space and unknown space. A beam disappearing from the camera does not cease to constrain the trailing body.</p>
-<p>At high noise, a decoded candidate may be a poor spatial anchor. Begin with measured history and broad geometry, then consider model-generated clean estimates for local refinement while retaining global context. Train with the same source of anchors available at inference. Cropping scene information around the true future training trajectory would leak information unavailable to the deployed generator.</p>
-<p>The local-query idea has precedents in <a href="https://arxiv.org/html/2508.11002v1">3D FlowMatch Actor</a>, terrain selection in <a href="https://arxiv.org/html/2606.05880v1">TAGA</a>, and scene-aware character modeling in <a href="https://arxiv.org/html/2410.03187v1">LINGO</a>. Our proposed contribution must be a measured improvement in preserved compatibility or action timing, not the presence of a cross-attention layer.</p>
-<h3 id="what-should-pretraining-preserve">What should pretraining preserve?</h3>
-<p>Proposed supervision predicts body/time compatibility, visibility and support-related relations for demonstrations <strong>and alternative motions</strong>. Use continuous geometry where available; use typed uncertain labels elsewhere. Match representation capacity, input access, label acquisition cost, optimizer exposure and inference budget across comparisons. A local reader that consults the full map cannot be advertised as a tiny standalone scene code.</p>
-<p>One proposed relation objective makes that requirement explicit. Let <strong>Z = E(S_obs, h, g)</strong>, and let <strong>d_ref(M,S,b,k)</strong> be a qualified clearance label for candidate motion M, body b and physical step k:</p>
-<pre><code class="language-text">Lrel = E[M ~ Q] Σb,k w(b,k) · mask(b,k)
-                    · ρ(R(Z,M,b,k) − d_ref(M,S,b,k))
-</code></pre>
-<p><strong>Q</strong> must include valid alternatives and verified incompatible probes, not only the demonstrated motion. The mask excludes unsupported labels; weights must be bounded and evaluated rather than assumed to improve learning. In partial observations, a hidden obstacle cannot be treated as fully inferable just because a privileged teacher sees it. Retain visibility/unknown outputs and distinguish geometric supervision from empirical execution-risk supervision.</p>
-<p>A useful compression diagnostic is whether the representation preserves the decision on a fixed candidate set. If a declared cost estimate satisfies <strong>|Ĵ(M) − J(M)| ≤ ε for every candidate</strong>, choosing the minimum estimated cost incurs at most <strong>2ε</strong> regret within that set: apply the error bound once to the selected motion, use estimated-cost minimality, and apply it once to the true best motion. This elementary conditional bound motivates measuring decision distortion; we have not established the required uniform error bound, and it is not a safety or closed-loop theorem for the trained model.</p>
-<p>For later FM pretraining, preserve the fixed prefix in both the training path and deployment sampler, normalize loss over editable suffix coordinates, and skip examples with no editable suffix. First train a standard conditional FM baseline. Add relation or endpoint-geometry losses one at a time, measuring mode coverage and task validity as well as regression loss. The current negative sampler and representation results argue against combining all proposed objectives before identifying which one helps.</p>
-<p>Define an event window over preparation → constrained passage → whole-body exit → recovery. A stronger proposed event signal asks how much validated motion quality changes when adjustment is delayed, with the same repair and verification budget. A failed delayed reference only demonstrates sensitivity within that tested motion family; it does not prove no controller could recover.</p>
-<p>Attention maps alone are not causal explanations. Test whether moving the relevant beam changes the predicted posture appropriately, whether removing its patch harms the corresponding behavior, and whether unrelated geometric edits leave the action stable. Compare uniform exposure, low-clearance exposure and delayed-adjustment sensitivity separately.</p>
-</section><section class="chapter"><h2 id="research-roadmap">Research roadmap</h2>
-<p>Our next work should resolve a bottleneck before adding architecture. The following stages are <strong>plans, not completed experiments</strong>; advancement depends on evidence rather than calendar dates.</p>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Stage</th>
-<th>Decisive experiment</th>
-<th>Primary measurement</th>
-<th>Decision / stop condition</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1 · Diagnose generator support</td>
-<td>Frozen FM versus independent domain search, under matched candidate and checking budgets; retain exact verification</td>
-<td>Valid yield, scene coverage, search-found/FM-missed cases and cost</td>
-<td>Search success isolates a missed feasible region. Search failure is “not found,” never proof of infeasibility.</td>
-</tr>
-<tr>
-<td>2 · Replicate the checking choice</td>
-<td>Freeze uniform16 + fallback; compare with direct exact on new families and repeated timing</td>
-<td>Identical accepted sets and selected actions; useful-output cost</td>
-<td>Retain the hybrid only if its benefit survives the new workload.</td>
-</tr>
-<tr>
-<td>3 · Qualify scene–motion data</td>
-<td>Verify MTC or another explicitly named paired corpus, transforms, ancestry, contacts, reference limits and observation contract</td>
-<td>Usable independent episodes and typed exclusions</td>
-<td>Do not train execution imitation on an unqualified reference just because it is finite.</td>
-</tr>
-<tr>
-<td>4 · Test task-preserving pretraining</td>
-<td>Matched-capacity scene encoders; reconstruction versus compatibility supervision; fixed downstream probes and then fixed FM</td>
-<td>Unsafe acceptance at matched coverage, raw generated validity, codec-added collisions</td>
-<td>If no downstream improvement, do not scale the new loss.</td>
-</tr>
-<tr>
-<td>5 · Test event-aware temporal learning</td>
-<td>Uniform versus reliable event mixtures with matched unique episodes, labels and compute</td>
-<td>Preparation timing, brief-event misses, recovery before whole-body exit</td>
-<td>If exposure helps only familiar layouts, investigate memorization and event leakage.</td>
-</tr>
-<tr>
-<td>6 · Expand the motion model</td>
-<td>Continuous native references before optional codec/native-token comparison; iid versus structured temporal source</td>
-<td>Geometry, range, temporal consistency, diversity and total sampling cost</td>
-<td>Discard source/solver changes that improve numerical metrics without task benefit.</td>
-</tr>
-<tr>
-<td>7 · Close the loop</td>
-<td>Same qualified tracker, scenes, sensing and tuning budget for retrieval/editing, baseline FM and proposed model</td>
-<td>Goal completion, prohibited contacts, falls, safe refusals and latency percentiles</td>
-<td>If tracking dominates even with oracle references, work on the execution interface first.</td>
-</tr>
-</tbody>
-</table></div>
-<h3 id="three-competing-explanations-to-separate-next">Three competing explanations to separate next</h3>
-<p><strong>Sampling coverage:</strong> valid motions exist in the current control family, but 32 FM samples miss them. Independent search can expose those cases; increasing candidate count should then be compared at matched total cost.</p>
-<p><strong>Conditioning insufficiency:</strong> motions in the family could work, but the representation does not distinguish the critical geometry or goal. Intervention tests and a stronger geometry-conditioned baseline are needed. A search result alone cannot establish this cause.</p>
-<p><strong>Expressive limits:</strong> crouch/yaw/shift cannot represent the needed step, timing or route. An oracle upper bound over a larger, qualified motion family is informative. Failed finite search in the small family is insufficient to prove this explanation.</p>
-<h3 id="an-interpretable-future-ablation">An interpretable future ablation</h3>
-<p>After data and interfaces are qualified, begin with a small factorial comparison: compatibility supervision on/off × event mixture on/off, using one fixed backbone. Then separately test body-relative attention and source design. Preserve retrieval/editing, uniform local reads and exact geometry references. Report actual deployed selection alongside any hindsight best-of-K ceiling.</p>
-<p>For codec studies, compare the original reference, decoded reference and executed motion on the same scene. Geometric loss after compression and tracking deviation are different errors. A proposed clearance budget can account for scene error, representation-induced body displacement and tracking error using explicit bounds; empirical quantiles are not automatically deterministic guarantees, and overlapping error terms must not be counted twice.</p>
-</section><section class="chapter"><h2 id="literature-map">Literature map</h2>
-<p>This is a targeted primary-source review refreshed <strong>21 September 2026</strong>, not a systematic claim to cover every robotics FM paper or establish novelty. Links below point to author papers or official code. Reported results from these systems are not reproduced by our proxy experiments.</p>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Source</th>
-<th>What it contributes to the research question</th>
-<th>Boundary</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://arxiv.org/abs/2210.02747">Flow Matching</a></td>
-<td>Probability-path and vector-field training framework</td>
-<td>A generative formulation, not a robot safety mechanism</td>
-</tr>
-<tr>
-<td><a href="https://diffusion-policy.cs.columbia.edu/">Diffusion Policy</a></td>
-<td>Conditional action generation and receding-horizon policy design</td>
-<td>A necessary generative-policy comparator</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2410.24164v1">π₀</a> / <a href="https://github.com/Physical-Intelligence/openpi">OpenPI</a></td>
-<td>Vision-language features plus continuous action generation</td>
-<td>General robot manipulation evidence does not establish our traversal task</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/abs/2501.09747">FAST</a></td>
-<td>Action tokenization for autoregressive models</td>
-<td>Continuous FM is not the only viable action head</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/abs/2503.14734">GR00T N1</a></td>
-<td>A generalist humanoid foundation-model reference</td>
-<td>Different system and data contract from native SONIC-token prediction</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2603.05993v1">MTC</a></td>
-<td>Aligned clutter geometry and embodiment-scaled traversal capture</td>
-<td>Local archive qualification remains separate</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2609.18732v1">PASSAGE</a></td>
-<td>Scene-conditioned continuous humanoid planning and perceptive tracking</td>
-<td>Closely related system; component composition is not our novelty</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2609.09158v1">TANGO</a></td>
-<td>Whole-body VLA navigation with SONIC and filtered reference supervision</td>
-<td>Reference chunks are not automatically native controller tokens</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2511.07820v4">SONIC</a> / <a href="https://github.com/NVlabs/GR00T-WholeBodyControl">code</a></td>
-<td>Universal motion representation and whole-body tracking interfaces</td>
-<td>Checkpoint and observation compatibility must be pinned</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2508.11002v1">3D FlowMatch Actor</a></td>
-<td>3D scene/action correspondence for manipulation</td>
-<td>Whole-body swept-volume relations need separate validation</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2606.05880v1">TAGA</a> / <a href="https://arxiv.org/html/2410.03187v1">LINGO</a></td>
-<td>Relevant local geometry selection and character–scene context</td>
-<td>Terrain/character evidence does not qualify our controller</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/html/2512.05964v1">Training-Time Action Conditioning</a></td>
-<td>Conditioning on committed prefixes under delay</td>
-<td>Measured-state and generated-prefix shifts remain important</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/abs/2607.14424">ConFlow</a></td>
-<td>Constrained motion learning and structured sources</td>
-<td>Abstract/method-level context here; not a reproduced baseline</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/abs/2511.08425">HardFlow</a></td>
-<td>Terminal-sample constraints through optimization</td>
-<td>Modeled feasibility differs from tracking/contact feasibility</td>
-</tr>
-<tr>
-<td><a href="https://arxiv.org/abs/2504.08661">SafeFlow</a> / <a href="https://arxiv.org/abs/2506.02955">UniConFlow</a></td>
-<td>Barrier and constrained-planning alternatives</td>
-<td>Their assumptions must be re-established for our system</td>
-</tr>
-</tbody>
-</table></div>
-<p>Bibliographic correction: earlier local notes called arXiv:2504.08661 “SafeFM”; its current title is <strong>SafeFlow</strong>. Historical notes are retained, while this review uses the verified title. Dates and versioned links identify what was read; no priority or first-in-literature claim is made.</p>
-</section><section class="chapter"><h2 id="evidence-and-limitations">Evidence and limitations</h2>
-<h3 id="do-not-mix-these-denominators">Do not mix these denominators</h3>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Denominator</th>
-<th>What it answers</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Pilot false-safe rate</td>
-<td>All actually unsafe candidates</td>
-<td>How many unsafe candidates are mistakenly accepted?</td>
-</tr>
-<tr>
-<td>Unsafe fraction at fixed coverage</td>
-<td>Accepted candidates</td>
-<td>How contaminated is the selected set at this acceptance budget?</td>
-</tr>
-<tr>
-<td>Native witness fraction</td>
-<td>Accepted candidates, with unknowns separately reported</td>
-<td>How many selected candidates have demonstrated primitive overlap?</td>
-</tr>
-<tr>
-<td>Raw valid-candidate yield</td>
-<td>All generated candidates, before filtering</td>
-<td>How useful is the generator’s distribution?</td>
-</tr>
-<tr>
-<td>Valid scene return</td>
-<td>All scene–model evaluations</td>
-<td>Did the actual selector return a valid motion?</td>
-</tr>
-<tr>
-<td>Certification coverage</td>
-<td>All examined candidates</td>
-<td>How many can this finite-query checker itself prove clear?</td>
-</tr>
-<tr>
-<td>Cost per valid return</td>
-<td>Total relevant batch cost / valid returns</td>
-<td>How much computation is paid for each useful output, including failed scenes?</td>
-</tr>
-</tbody>
-</table></div>
-<p>Percentages from different test draws or different denominators should not be plotted as one learning curve. Multiple fitted seeds are not additional independent scenes. Family/source-group bootstrap intervals condition on the fitted models; they do not include every form of training or acquisition uncertainty. Three timing repetitions give a descriptive range, not a population confidence interval.</p>
-<h3 id="corrections-remain-visible">Corrections remain visible</h3>
-<p>The native audit initially left 71/240 scenes unresolved; later interval refinement supplied certificates for them. This is additional evidence, not a claim that the first audit found collisions. The five-frame event remained missed at the original 16-query budget. The FM checker’s float32 box-center mismatch was corrected by promoting geometry before arithmetic and rerunning all arms on the identical frozen bank; the audit tolerance was not relaxed. Original attempts remain in the local archive.</p>
-<p>The latest hybrid implementation passed <strong>75 tests</strong>, replayed <strong>82,944 certificate sets</strong>, and checked <strong>96,768 candidate decisions</strong> across 21 arm/model traces. Those replay counts include repeated checking of the same 13,824 candidates. They are verification work, not new data or robot trials.</p>
-<h3 id="what-this-website-publishes">What this website publishes</h3>
-<p>This public review includes the study ledger, original research-note snapshots with machine-specific home paths generalized, selected scientific figures, and a SHA-256 source/publication manifest. Model weights, original motion archives, robot assets, full prediction arrays and large local experiment bundles are <strong>not included</strong>. Source reports describe the locally available reproduction commands and artifact identifiers; those internal identifiers are not public download promises.</p>
-<div class="download-grid"><a href="data/experiments.json">Study ledger · JSON</a><a href="evidence/manifest.json">Source/publication manifest · JSON</a><a href="content/review.md">Full English research review · Markdown</a><a href="evidence/notes/HYBRID_CHECKER_RESULT_zh.txt">Latest detailed report · 中文</a></div>
+<!-- ============================================================ FLOW MATCHING -->
+<section class="sec" id="flow-matching">
+  <div class="sec-head"><p class="eyebrow">02 · The core tool</p><h2>Flow matching, in one picture</h2>
+    <p class="lede">Both flows use the same recipe. Pair noise <span class="m">x₀</span> with a real example <span class="m">x₁</span> and connect them with a straight line. At a random time <span class="m">t</span> the network sees the in-between point and learns the velocity that carries it to the data. Averaged over many pairs, those velocities form a smooth field; to generate, drop fresh noise into the field and follow the arrows. The toy below uses the <em>exact</em> field for points on a G1 silhouette. Change the condition, and the same noise flows somewhere else.</p></div>
+  <div class="widget fm" id="w-fm" data-src="home/data/fm.json">
+    <canvas class="fm-canvas" role="img" aria-label="Particles flowing from Gaussian noise to a G1 silhouette under the flow-matching velocity field"></canvas>
+    <div class="fm-panel">
+      <div class="controls"><button class="btn sm play" type="button">▶ Play the flow</button>
+        <div class="seg" role="group" aria-label="Condition"><button type="button" class="on" data-c="stand">stand</button><button type="button" data-c="duck">duck</button></div></div>
+      <label class="slider"><span>flow time <b class="v-t">t = 0.00</b></span><input type="range" min="0" max="1" step="0.005" value="0" aria-label="Flow time"></label>
+      <div class="checks"><label class="check"><input type="checkbox" class="v-field" checked> velocity field</label>
+      <label class="check"><input type="checkbox" class="v-pairs"> training pairs</label></div>
+      <div class="eqs">
+        <p><span class="eq">x_t = (1 − t)·x₀ + t·x₁</span><span>a straight path from noise to data</span></p>
+        <p><span class="eq t">u = x₁ − x₀</span><span>the target velocity</span></p>
+        <p><span class="eq">loss = ‖ v_θ(x_t, t | c) − u ‖²</span><span>the network learns the field</span></p>
+        <p><span class="eq s">x ← x + v_θ(x, t | c)·Δt</span><span>sampling: follow the arrows</span></p>
+      </div>
+      <div class="two-cards"><div class="mini b-amber"><b class="c-amber">SceneFlow</b><span>data = obstacle boxes · condition = a motion</span></div><div class="mini b-teal"><b class="c-teal">Flow planner</b><span>data = 1 s of whole-body motion · condition = map + goal</span></div></div>
+    </div>
+  </div>
+</section>
 
-<details class="notes"><summary>Browse all original protocols, result notes and the initial research plan</summary><ul><li><a href="evidence/notes/BOUNDARY_V2_PROTOCOL.txt">BOUNDARY_V2_PROTOCOL</a></li><li><a href="evidence/notes/BOUNDARY_V2_RESULT_zh.txt">BOUNDARY_V2_RESULT_zh</a></li><li><a href="evidence/notes/BOUNDED_FLOW_RESULT_zh.txt">BOUNDED_FLOW_RESULT_zh</a></li><li><a href="evidence/notes/BOUNDED_FLOW_V1_PROTOCOL.txt">BOUNDED_FLOW_V1_PROTOCOL</a></li><li><a href="evidence/notes/FM_CHECKER_RESULT_zh.txt">FM_CHECKER_RESULT_zh</a></li><li><a href="evidence/notes/FM_CHECKER_V1_NUMERICS.txt">FM_CHECKER_V1_NUMERICS</a></li><li><a href="evidence/notes/FM_CHECKER_V1_PROTOCOL.txt">FM_CHECKER_V1_PROTOCOL</a></li><li><a href="evidence/notes/HYBRID_CHECKER_RESULT_zh.txt">HYBRID_CHECKER_RESULT_zh</a></li><li><a href="evidence/notes/HYBRID_CHECKER_V1_PROTOCOL.txt">HYBRID_CHECKER_V1_PROTOCOL</a></li><li><a href="evidence/notes/LOCAL_DATA_INVENTORY.txt">LOCAL_DATA_INVENTORY</a></li><li><a href="evidence/notes/Motion2Scene_followup_zh.txt">Motion2Scene_followup_zh</a></li><li><a href="evidence/notes/NATIVE_BUDGET_RESULT_zh.txt">NATIVE_BUDGET_RESULT_zh</a></li><li><a href="evidence/notes/NATIVE_BUDGET_V1_PROTOCOL.txt">NATIVE_BUDGET_V1_PROTOCOL</a></li><li><a href="evidence/notes/NATIVE_EVENT_RESULT_zh.txt">NATIVE_EVENT_RESULT_zh</a></li><li><a href="evidence/notes/NATIVE_EVENT_V1_PROTOCOL.txt">NATIVE_EVENT_V1_PROTOCOL</a></li><li><a href="evidence/notes/NATIVE_REFERENCE_RESULT_zh.txt">NATIVE_REFERENCE_RESULT_zh</a></li><li><a href="evidence/notes/NATIVE_REFERENCE_V1_PROTOCOL.txt">NATIVE_REFERENCE_V1_PROTOCOL</a></li><li><a href="evidence/notes/NATIVE_STRUCTURE_RESULT_zh.txt">NATIVE_STRUCTURE_RESULT_zh</a></li><li><a href="evidence/notes/NATIVE_STRUCTURE_V1_PHASE_CONTROL.txt">NATIVE_STRUCTURE_V1_PHASE_CONTROL</a></li><li><a href="evidence/notes/NATIVE_STRUCTURE_V1_PROTOCOL.txt">NATIVE_STRUCTURE_V1_PROTOCOL</a></li><li><a href="evidence/notes/PILOT_V1_PROTOCOL.txt">PILOT_V1_PROTOCOL</a></li><li><a href="evidence/notes/PILOT_V1_RESULT.txt">PILOT_V1_RESULT</a></li><li><a href="evidence/notes/SPATIAL_FLOW_NEXT.txt">SPATIAL_FLOW_NEXT</a></li><li><a href="evidence/notes/SPATIAL_FLOW_RESULT_zh.txt">SPATIAL_FLOW_RESULT_zh</a></li><li><a href="evidence/notes/SPATIAL_V3_PROTOCOL.txt">SPATIAL_V3_PROTOCOL</a></li><li><a href="evidence/notes/primary_source_audit.txt">primary_source_audit</a></li></ul></details>
+<!-- ============================================================ SCENEFLOW -->
+<section class="sec" id="sceneflow">
+  <div class="sec-head"><p class="eyebrow c-amber">03 · SceneFlow</p><h2>The data engine: what “necessary” means</h2>
+    <p class="lede">SceneFlow learns from a slower, exact engine. It takes groups of motions that share the same past but continue differently (duck, side-step, keep walking). Each future is a target; its siblings are the alternatives a scene must rule out. On an alternative's body the engine finds critical points the target stays clear of, grows a box from each point face by face until it would touch the target, and keeps the scene only if an exact check with 45 body capsules says the target clears every box and the alternative hits one.</p></div>
+  <figure class="fig wide"><img src="home/img/data_engine.webp" width="1920" height="755" loading="lazy" alt="Four steps: sibling futures, critical points, grow from a seed, exact check; 11,358 motion groups, 33,045 target motions, 414,813 verified scenes."></figure>
 
-</section><section class="chapter"><h2 id="related-projects">Related projects</h2>
-<p>This page covers the Motion2Scene Flow experiments in the current workspace. The public repositories below provide the broader research context; their results have <strong>not</strong> been pooled into this page’s experimental counts or independently re-audited here. Descriptions follow their public repository metadata.</p>
-<div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable comparison table"><table>
-<thead>
-<tr>
-<th>Project</th>
-<th>Role in the broader program</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://github.com/linjiw/hindsight-motion-research">Hindsight Motion Research</a></td>
-<td>Whole-body motion representations and hindsight critical-scene proposals</td>
-</tr>
-<tr>
-<td><a href="https://github.com/linjiw/motion2scene-training">Motion2Scene Training</a></td>
-<td>Motion-derived scenes, teacher/student training, qualification and navigation experiments</td>
-</tr>
-<tr>
-<td><a href="https://linjiw.github.io/scene2motion/">Scene2Motion-G1</a></td>
-<td>Auditing a frozen motion prior as a scene-conditioned traversal module</td>
-</tr>
-<tr>
-<td><a href="https://github.com/linjiw/groot-wbc-sonic-sim-trackb">SONIC SIM Track B</a></td>
-<td>Bounded simulation evaluation and curriculum/checkpoint provenance</td>
-</tr>
-<tr>
-<td><a href="https://github.com/linjiw/climb-feasibility-first">CLIMB</a></td>
-<td>Feasibility-first motion tracking and retargeting research record</td>
-</tr>
-<tr>
-<td><a href="https://github.com/linjiw/refeas">refeas</a></td>
-<td>Dynamic-feasibility screening for retargeted motion data</td>
-</tr>
-<tr>
-<td><a href="https://linjiw.github.io/newton-terrain-lab/">Newton Terrain Lab</a></td>
-<td>Terrain generation and experimental humanoid tracking</td>
-</tr>
-<tr>
-<td><a href="https://github.com/linjiw/lucid">LUCID</a></td>
-<td>Motion-tracking curriculum research workspace</td>
-</tr>
-</tbody>
-</table></div>
-<p>The organizing idea across this review is to keep <strong>representation, generation, verification and execution measurable separately</strong>, then demonstrate that a proposed improvement survives their integration.</p></section></main></div>
-<footer><span>Motion2Scene Flow · Research workspace by <a href="https://github.com/linjiw">linjiw</a></span><span>Updated 21 September 2026 · <a href="evidence/manifest.json">Evidence manifest</a> · <a href="#top">Back to top ↑</a></span></footer></body></html>
+  <div class="sec-head"><h3>A flow over sets of boxes</h3>
+    <p class="lede">A scene is up to <b>8 box slots × 12 numbers</b>: exists, kind (ground, low, mid, overhead), position, yaw, size, bottom and top. The condition is the motion (28 snapshots of 30 body points spanning −0.5…+2.3 s) plus optional knobs, such as the margin or the number of obstacles, that can be left blank. A transformer encodes the motion; a second one turns noisy slots into a velocity (13.3 M parameters, under an hour on one GPU). Sampling takes 40 Euler steps; from t = 0.5, two gentle corrections keep the boxes clear of the motion and in the way of the alternative; then each box is snapped against the body and checked exactly. Scrub the real 40-step sample below.</p></div>
+  <div class="widget slots" id="w-slots" data-src="home/data/slots.json">
+    <canvas class="slots-canvas" role="img" aria-label="Eight box slots of twelve numbers each, flowing from noise to a scene, with the decoded boxes and the motion path from above"></canvas>
+    <div class="controls row"><button class="btn sm play" type="button">▶ Play</button>
+      <label class="slider grow"><span>Euler step <b class="v-k">0 / 40</b></span><input type="range" min="0" max="40" step="0.1" value="0" aria-label="Euler step"></label></div>
+    <p class="small">SceneFlow v3c on a held-out Kimodo motion (“a scared person ducks under a low hanging obstacle”). Amber cells are positive, slate cells negative. Top view: the motion's path in black, decoded boxes in colour (amber overhead, red ground).</p>
+  </div>
+
+  <div class="sec-head"><h3>Watch it imagine a scene</h3><p class="lede">Eight noisy boxes drift, settle and lock into a scene: beams low enough to force the duck, a wall that shapes the path. After the snap the duck clears every box by a few centimetres, while walking upright would hit the beam. Sampling again gives different scenes for the same motion, and different motions get different kinds of scene.</p></div>
+  <div class="vgrid g2">
+    <figure class="vid span2"><video data-src="two-flows/media/sf_flow_duck.mp4" poster="two-flows/media/sf_flow_duck_flow.jpg" muted loop playsinline preload="none" aria-label="SceneFlow turning noise into a scene around a ducking motion"></video><figcaption>Noise → scene on a held-out duck: point cloud, 40-step flow, snap, the motion fits, the upright alternative collides.</figcaption></figure>
+    <figure class="vid"><video data-src="two-flows/media/sf_many.mp4" poster="two-flows/media/sf_many.jpg" muted loop playsinline preload="none" aria-label="Eight samples for one crouch motion"></video><figcaption>Eight samples for one crouch: six pass the exact check, two are rejected.</figcaption></figure>
+    <figure class="vid"><video data-src="two-flows/media/sf_behaviours.mp4" poster="two-flows/media/sf_behaviours.jpg" muted loop playsinline preload="none" aria-label="Scenes for six different held-out motions"></video><figcaption>Six held-out motions, six kinds of scene: beams for ducks, walls for sideways shuffles, low covers for crouch-walks.</figcaption></figure>
+  </div>
+  <div class="bars card" data-anim>
+    <h4>Share of samples that pass the full exact check</h4><p class="small">600 held-out motions × 8 samples · valid, necessary, right cause</p>
+    <div class="bar"><span>SceneFlow v3c (sees only the motion)</span><i style="--v:.669;--c:var(--amber)"></i><b>0.67</b></div>
+    <div class="bar"><span>Exact engine (sees the alternatives, ~10× slower)</span><i style="--v:.817;--c:var(--slate)"></i><b>0.82</b></div>
+  </div>
+
+  <div class="sec-head" id="cycleflow"><h3>CycleFlow: keep the scenes that explain the motion</h3>
+    <p class="lede">One more piece connects the two flows. For each generated scene we ask a planner how much better it predicts the real motion when it sees the scene than in an empty room: <span class="m">Δ = ℓ(motion | empty room) − ℓ(motion | scene)</span>, where ℓ is its flow-matching loss. A large Δ means the scene carries information about the motion; for every motion we keep the most informative of four verified scenes.</p></div>
+  <div class="split">
+    <figure class="vid"><video data-src="two-flows/media/cycle_rank.mp4" poster="two-flows/media/cycle_rank.jpg" muted loop playsinline preload="none" aria-label="Eight verified scenes for one motion ranked by delta"></video><figcaption>Eight verified scenes for one motion, ranked by Δ.</figcaption></figure>
+    <div class="bars card" data-anim>
+      <h4>Teacher goals on 56 validation tasks (3 seeds)</h4>
+      <p class="sub">without guidance <span class="chip green">+4.3 · p = 0.03</span></p>
+      <div class="bar"><span>random verified scenes</span><i style="--v:calc(32.7/56);--c:var(--slate)"></i><b>32.7</b></div>
+      <div class="bar"><span>cycle-filtered scenes</span><i style="--v:calc(37/56);--c:var(--amber)"></i><b>37.0</b></div>
+      <p class="sub">with guidance <span class="chip">+2.0 · not significant</span></p>
+      <div class="bar"><span>random verified scenes</span><i style="--v:calc(44/56);--c:var(--slate)"></i><b>44.0</b></div>
+      <div class="bar"><span>cycle-filtered scenes</span><i style="--v:calc(46/56);--c:var(--amber)"></i><b>46.0</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TEACHER -->
+<section class="sec" id="teacher">
+  <div class="sec-head"><p class="eyebrow c-teal">04 · The teacher</p><h2>Flow 2: scene + goal → whole-body motion</h2>
+    <p class="lede">The teacher reads a privileged height map, 3 m × 1.5 m around the robot in three layers (ground obstacles, waist-height overhangs, how low the overheads hang), the last four frames of its own motion, and a local goal. Out comes one second of whole-body motion: body height, tilt, velocity and all 29 joint angles, frame by frame. It is a 9.4 M-parameter flow-matching transformer, trained in about half an hour on one GPU on 68,180 windows of ordinary navigation motion plus 15,264 SceneFlow necessity windows (sampled 47% of the time), with three seeds for every result.</p></div>
+  <figure class="fig wide"><img src="home/img/teacher_io.webp" width="1920" height="660" loading="lazy" alt="Teacher inputs (three-layer height map, history, goal), the flow planner, and a one-second whole-body plan that lowers under a brace."></figure>
+
+  <div class="sec-head"><h3>How a plan is made</h3>
+    <p class="lede">Every 0.16 s: (1) a cost-aware route on the true map that keeps its distance from obstacles; (2) a local goal a short way ahead, steering toward the route; (3) <b>16 candidate motions</b> sampled from different noise in 10 flow steps; (4) a guidance term that pushes every body part away from the obstacles, padded by 8 cm; (5) a whole-body clearance check, then the safe candidate that ends closest to the local goal; (6) the first 0.16 s is executed and the robot replans from where it really is. Where the route's clearance drops below 45 cm, a tight mode slows the robot and brings its arms in. Scrub a real slalom run below.</p></div>
+  <div class="widget plan" id="w-plan" data-src="home/data/plan.json">
+    <canvas class="plan-canvas" role="img" aria-label="Top view of a slalom run: obstacles, route, local goal, sixteen candidate plans coloured by safety, the chosen plan and the robot"></canvas>
+    <div class="controls row"><button class="btn sm play" type="button">▶ Play run</button>
+      <label class="slider grow"><span>replan <b class="v-n">1 / 87</b></span><input type="range" min="0" max="86" step="1" value="52" aria-label="Replan index"></label>
+      <span class="chips"><span class="chip v-mode">walk</span><span class="chip teal v-safe">16 / 16 safe</span></span></div>
+    <p class="legend"><i class="lg l-teal"></i>safe candidate <i class="lg l-red"></i>too close <i class="lg l-chosen"></i>chosen <i class="lg l-exec"></i>executed 0.16 s <i class="lg l-route"></i>route <i class="lg l-goal"></i>local goal <i class="lg l-pad"></i>8 cm padding</p>
+    <p class="small">Closed arena dev slalom (current teacher, goal in 13.8 s). The candidates are re-sampled offline at each recorded state with the same checkpoint, modes and local goal; the chosen one matches the plan that actually ran to a median of 4 cm.</p>
+  </div>
+
+  <div class="split">
+    <figure class="vid"><video data-src="two-flows/media/pl_flow_beam.mp4" poster="two-flows/media/pl_flow_beam.jpg" muted loop playsinline preload="none" aria-label="Sixteen candidate plans without and with clearance guidance under a beam"></video><figcaption>The same step in 3-D. Network only: 0 of 16 candidates keep clear of the beam. With guidance: 16 of 16.</figcaption></figure>
+    <div class="card loop">
+      <h4>The closed loop</h4>
+      <ol class="loop-list">
+        <li class="b-teal"><b class="c-teal">Flow planner</b><span>new 1 s plan every 0.16 s</span></li>
+        <li class="b-slate"><b class="c-slate">SONIC tracker</b><span>frozen · joint targets at 50 Hz · never sees the scene</span></li>
+        <li class="b-ink"><b>Physics</b><span>Isaac Lab · 200 Hz</span></li>
+        <li class="b-blue"><b class="c-blue">Measured state</b><span>joints, pelvis, velocity → back to the planner</span></li>
+      </ol>
+      <p class="small">Replanning from the measured state absorbs slips and tracking errors. Only the first sixth of each plan is ever executed.</p>
+    </div>
+  </div>
+
+  <div class="sec-head"><h3>The teacher at work</h3><p class="lede">Closed-loop runs on arena and validation scenes the teacher never trained on. Teal dots are the committed 1 s plan, blue dots the pelvis trail.</p></div>
+  <div class="vgrid g3">
+    <figure class="vid"><video data-src="home/media/g_ducktuck_front.mp4" poster="home/media/g_ducktuck_front.jpg" muted loop playsinline preload="none" aria-label="Duck then tuck drill"></video><figcaption><b>Duck, then tuck</b> · 1.26 m brace, then a 0.547 m slot</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_slalom.mp4" poster="home/media/g_slalom.jpg" muted loop playsinline preload="none" aria-label="Slalom drill"></video><figcaption><b>Slalom</b> · 81 of 87 replans in tight mode</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_corridor_chase.mp4" poster="home/media/g_corridor_chase.jpg" muted loop playsinline preload="none" aria-label="Office corridor"></video><figcaption><b>Office corridor</b> · four overheads at 1.24–1.26 m</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_parking.mp4" poster="home/media/g_parking.jpg" muted loop playsinline preload="none" aria-label="Parking lot slot"></video><figcaption><b>Parking lot</b> · 0.556 m slot between a car and a wall</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_squeeze.mp4" poster="home/media/g_squeeze.jpg" muted loop playsinline preload="none" aria-label="Squeeze between shelves"></video><figcaption><b>Squeeze</b> · gap between shelves, goal in 3 of 3 seeds</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_vlearn.mp4" poster="home/media/g_vlearn.jpg" muted loop playsinline preload="none" aria-label="Validation scene generated by SceneFlow"></video><figcaption><b>Validation</b> · a SceneFlow scene from a held-out motion</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_office.mp4" poster="home/media/g_office.jpg" muted loop playsinline preload="none" aria-label="Office room"></video><figcaption><b>Office room</b> · benching rows, 109 replans (2×)</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_warehouse.mp4" poster="home/media/g_warehouse.jpg" muted loop playsinline preload="none" aria-label="Warehouse aisles"></video><figcaption><b>Warehouse aisles</b> · 16 m route (2×)</figcaption></figure>
+    <figure class="vid"><video data-src="home/media/g_storage.mp4" poster="home/media/g_storage.jpg" muted loop playsinline preload="none" aria-label="Storage room"></video><figcaption><b>Storage</b> · 0.39 m shelf gap, body angled (2.5×)</figcaption></figure>
+  </div>
+</section>
+
+<!-- ============================================================ ARENA -->
+<section class="sec" id="arena">
+  <div class="sec-head"><p class="eyebrow c-red">05 · The arena</p><h2>G1 Traverse Arena</h2>
+    <p class="lede">To know whether any of this generalizes we needed a test no model trained on. The arena's generator is separate from our training data engine, and every scene ships with a certificate. Seventeen families of scenes: offices, warehouses, lobbies, parks, parking lots, debris fields, and drills for ducking, squeezing, slaloms and dead ends. Four families are sealed and kept out of every decision.</p></div>
+  <div class="split arena-top">
+    <figure class="fig scroller"><div class="scroll-box" tabindex="0" role="region" aria-label="Gallery of the 17 arena families (preview scenes)"><img src="home/img/arena_gallery.webp" width="1440" height="2043" loading="lazy" alt="3-D cards of all 17 arena families at difficulty 0.5 with the G1 at the start and its route."></div><figcaption>Preview scenes (never test) at difficulty 0.5 · scroll inside the frame.</figcaption></figure>
+    <div class="families">
+      <p class="fam-h">organized</p><p><span class="tag2">office corridor</span><span class="tag2">office room</span><span class="tag2">warehouse aisles</span><span class="tag2">lobby queue</span><span class="tag2 sealed">home living</span></p>
+      <p class="fam-h">unorganized</p><p><span class="tag2">storage clutter</span><span class="tag2">debris field</span><span class="tag2 sealed">construction site</span></p>
+      <p class="fam-h">outdoor</p><p><span class="tag2">park</span><span class="tag2">street sidewalk</span><span class="tag2">parking lot</span><span class="tag2 sealed">forest</span></p>
+      <p class="fam-h">drills</p><p><span class="tag2">duck</span><span class="tag2">squeeze</span><span class="tag2">slalom</span><span class="tag2">dead-end trap</span><span class="tag2 sealed">doors</span></p>
+      <p class="small"><span class="tag2 sealed">red</span> = sealed family · 1,044 scenes in tiers A/B · 371 whole-body scenes in tier C</p>
+      <div class="ladder">
+        <div><b>L1</b><span>flat 2-D route + fixed posture</span><em class="bad">must fail</em></div>
+        <div><b>L2</b><span>posture-aware route (yaw × posture lattice)</span><em>must solve</em></div>
+        <div><b>L3</b><span>a real G1 motion clears every gate by ≥ 3 cm</span><em>witness</em></div>
+        <div><b>L3+</b><span>…and SONIC actually executes it in physics</span><em>executed</em></div>
+      </div>
+    </div>
+  </div>
+  <div class="protocol">
+    <div class="t-amber"><b>Validation</b><span>V-learn · 71 tasks</span><small>SceneFlow scenes on held-out motions — tune here</small></div>
+    <div class="t-teal"><b>Arena dev</b><span>52 + 43 scenes × 3 seeds</span><small>every change must hold here too</small></div>
+    <div class="t-red"><b>Sealed test</b><span>read once per adopted recipe</span><small>unread at the time of writing</small></div>
+  </div>
+  <p class="center small">Paired by task and seed, sign tests, registrations before reads, and every new switch off by default (bit-identical when off). <b>Self-audit:</b> when we found the robot could walk around the outside of open arena scenes, we closed them with certified boundary walls and reset every baseline. All numbers below are on the closed arena.</p>
+</section>
+
+<!-- ============================================================ RESULTS -->
+<section class="sec" id="results">
+  <div class="sec-head"><p class="eyebrow c-red">05 · Results · 12 October 2026</p><h2>Where the teacher stands</h2>
+    <p class="lede">On the validation scenes, goals rose from 33 to 49 of 71, mostly from two fixes: a route that covers the whole task, and slowing down with the arms tucked in narrow passages. On the closed arena dev panel the current teacher reaches two thirds of its goals with no falls. The whole-body tier is much harder.</p></div>
+  <div class="split">
+    <div class="bars card" data-anim>
+      <h4>Validation (V-learn) · goals of 71 · mean of 3 seeds</h4>
+      <div class="bar"><span>Oct 9 · learned-only teacher</span><i style="--v:calc(33.3/71);--c:var(--slate)"></i><b>33.3</b></div>
+      <div class="bar"><span>+ route covers the whole task</span><i style="--v:calc(42/71);--c:var(--slate)"></i><b>42.0</b></div>
+      <div class="bar"><span>+ slow, arms in when narrow</span><i style="--v:calc(46.7/71);--c:var(--slate)"></i><b>46.7</b></div>
+      <div class="bar"><span>+ posture-rich teachers (adopted)</span><i style="--v:calc(48.7/71);--c:var(--amber)"></i><b>48.7</b></div>
+    </div>
+    <div class="bars card" data-anim>
+      <h4>Closed arena dev · current teacher</h4>
+      <div class="big"><b class="c-teal">67%</b><span>arena scenes, tiers A/B<small>104 / 156 episodes · 0 falls</small></span></div>
+      <div class="big"><b class="c-red">10%</b><span>whole-body tier C<small>13 / 129 episodes</small></span></div>
+      <p class="sub">tier-C gates passed</p>
+      <div class="bar"><span>overhead (duck)</span><i style="--v:1;--c:var(--green)"></i><b>33/33</b></div>
+      <div class="bar"><span>slot 0.54–0.57 m</span><i style="--v:calc(10/75);--c:var(--red)"></i><b>10/75</b></div>
+      <div class="bar"><span>arm-height (sideways)</span><i style="--v:calc(3/51);--c:var(--red)"></i><b>3/51</b></div>
+    </div>
+  </div>
+  <div class="sec-head"><h3>Where it breaks</h3><p class="lede">Asked to duck under a sign at 1.06 m, every plan is rated safe, but SONIC lowers the pelvis only to 0.65 m and the torso clips the sign: the tracker's executed duck is the limit, not the plan. Walking straight at a torso-height counter fails, while turning sideways gets through; that sideways run comes from an experimental retrieval variant we have not adopted.</p></div>
+  <div class="vgrid g2">
+    <figure class="vid"><video data-src="home/media/fail_duck.mp4" poster="home/media/fail_duck.jpg" muted loop playsinline preload="none" aria-label="Collision with a 1.06 m sign"></video><figcaption><span class="chip red">collision</span> sign at 1.06 m: the executed duck is too shallow (slow motion)</figcaption></figure>
+    <figure class="vid"><video class="natural" data-src="home/media/sideways.mp4" poster="home/media/sideways.jpg" muted loop playsinline preload="none" aria-label="Walking forward fails, turning sideways succeeds"></video><figcaption><span class="chip red">left: walk forward, collision</span> <span class="chip green">right: turn sideways, goal (experimental)</span></figcaption></figure>
+  </div>
+</section>
+
+<!-- ============================================================ STUDENT -->
+<section class="sec" id="student">
+  <div class="sec-head"><p class="eyebrow c-indigo">06 · The student</p><h2>Seeing the world through lidar</h2>
+    <p class="lede">A real robot has no perfect map, so the student builds its own from the G1's head-mounted Livox MID-360. We simulate it ray by ray: each ray returns the first surface it meets (the floor, the side of an obstacle, the underside of a beam). Returns go into a memory grid, and the student reads the same 3 m map as the teacher, except that anything not seen yet counts as free. It keeps the teacher's network and training targets but learns them from these lidar maps (189k map windows); it does not imitate the teacher's plans.</p></div>
+  <div class="widget lidar" id="w-lidar" data-src="home/data/lidar.json">
+    <div class="lidar-wrap">
+      <canvas class="lidar-canvas" role="img" aria-label="Top view of lidar rays, the growing memory grid, the hidden second beam and the robot"></canvas>
+      <div class="lidar-maps"><p class="c-teal">teacher · privileged map</p><canvas class="map-t" aria-hidden="true"></canvas><p class="c-indigo">student · lidar memory</p><canvas class="map-s" aria-hidden="true"></canvas></div>
+    </div>
+    <div class="controls row"><button class="btn sm play" type="button">▶ Play (slow motion)</button>
+      <label class="slider grow"><span>time <b class="v-t">t = 0.0 s</b></span><input type="range" min="0" max="3.3" step="0.01" value="1.8" aria-label="Episode time"></label></div>
+    <p class="legend"><i class="lg l-floorhit"></i>floor hits <i class="lg l-beamhit"></i>beam hits <i class="lg l-memfloor"></i>seen floor <i class="lg l-membeam"></i>seen beam undersides <i class="lg l-true"></i>true beams (unknown to the student)</p>
+    <p class="small">Held-out double-beam task, student run (goal in 3.3 s). The memory is rebuilt with the same ray caster and seed. Watch the insets: the teacher sees both beams; the student sees the second beam only in fragments, hidden behind the first.</p>
+  </div>
+  <div class="split">
+    <figure class="vid"><video data-src="home/media/occlusion.mp4" poster="home/media/occlusion.jpg" muted loop playsinline preload="none" aria-label="Student without and with beam enlargement"></video><figcaption>Occlusion. <span class="chip red">left: seen beams only, collision</span> <span class="chip green">right: every seen beam enlarged by up to 0.6 m, goal</span></figcaption></figure>
+    <div class="bars card" data-anim>
+      <h4>Student vs teacher (Isaac Lab)</h4>
+      <p class="sub">fresh panel, read once · 252 tasks</p>
+      <div class="bar"><span>teacher · perfect map</span><i style="--v:calc(208/252);--c:var(--teal)"></i><b>208</b></div>
+      <div class="bar"><span>student · own lidar + lidar route</span><i style="--v:calc(207/252);--c:var(--indigo)"></i><b>207</b></div>
+      <p class="sub">held-out panel · 98 tasks (privileged route)</p>
+      <div class="bar"><span>guided teacher</span><i style="--v:calc(81/98);--c:var(--teal)"></i><b>81</b></div>
+      <div class="bar"><span>student</span><i style="--v:calc(83/98);--c:var(--indigo)"></i><b>83</b></div>
+      <p class="small">The student has not yet been read on the arena.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ DEPLOY -->
+<section class="sec" id="deploy">
+  <div class="sec-head"><p class="eyebrow c-indigo">06 · Toward the real robot</p><h2>The deployment stack</h2>
+    <p class="lede">On the G1, a node reads the robot's own MID-360 point cloud, removes the robot's body from it, corrects for motion within each sweep and fills the same memory. A fused GPU planner returns a plan in 0.10–0.18 s (two to three times faster than before, same choices); SONIC runs in C++ with TensorRT, and a gamepad can take over at any moment. We rehearse the full stack in MuJoCo with the real lidar pattern, odometry noise and delays.</p></div>
+  <div class="split">
+    <ol class="stack">
+      <li class="b-indigo"><b>MID-360 point cloud</b><span>the G1's own head lidar, 10 Hz</span></li>
+      <li class="b-indigo"><b>Deskew + self-filter</b><span>per 5 ms slice, robot body removed</span></li>
+      <li class="b-indigo"><b>Evidence memory → map</b><span>same 3 × 31 × 61 map as in simulation</span></li>
+      <li class="b-teal"><b>Fused flow planner</b><span>GPU · p95 0.10–0.18 s per plan</span></li>
+      <li class="b-slate"><b>SONIC C++ runner</b><span>TensorRT · joint commands to the G1</span></li>
+    </ol>
+    <figure class="vid"><video data-src="home/media/rehearsal.mp4" poster="home/media/rehearsal.jpg" muted loop playsinline preload="none" aria-label="Operator console and MuJoCo rehearsal of the deployment stack"></video><figcaption>MuJoCo rehearsal of the deploy stack (not hardware): operator console, prescan, student plans, two beams.</figcaption></figure>
+  </div>
+  <div class="split">
+    <div class="bars card" data-anim>
+      <h4>Rehearsal gates · goals of 98 held-out tasks (MuJoCo)</h4>
+      <div class="bar"><span>no latency</span><i style="--v:calc(84/98);--c:var(--slate)"></i><b>84</b></div>
+      <div class="bar"><span>realistic, 0.18 s latency</span><i style="--v:calc(82/98);--c:var(--teal)"></i><b>82</b></div>
+      <div class="bar"><span>realistic, 0.32 s latency</span><i style="--v:calc(75/98);--c:var(--slate)"></i><b>75</b></div>
+      <div class="bar"><span>front ±45° blind</span><i style="--v:calc(58/98);--c:var(--amber)"></i><b>58</b></div>
+      <div class="bar"><span>lidar tilted 3°, uncalibrated</span><i style="--v:calc(15/98);--c:var(--red)"></i><b>15</b></div>
+      <p class="small">Calibration is mandatory: <code>g1 calibrate</code> recovers 2° / 1° / 2 cm mount errors to under 0.1° / 5 mm in simulation.</p>
+    </div>
+    <div class="card hw">
+      <h4>Status: nothing on hardware yet</h4>
+      <ol class="hw-ladder">
+        <li class="ok">H0 desk</li><li class="ok">H1 network check</li><li class="ok">H2 standing perception</li><li class="ok">H3 gantry stand</li><li class="ok">H4 stream replay</li><li class="ok">H5 open floor 2–3 m</li><li>H6 ground obstacles</li><li>H7 beams</li>
+      </ol>
+      <p class="small">Green rungs: the stack is rated ready for them; none has been run yet. Beams wait for a deep-duck safety check. The only hardware contact so far is the SONIC runner's initialization and a fixed stand in a gantry, with the policy never armed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ PRINCIPLES -->
+<section class="sec" id="principles">
+  <div class="sec-head"><p class="eyebrow">07 · Outlook</p><h2>Research principles</h2></div>
+  <div class="principles">
+    <div class="t-amber"><em>01</em><b>Necessity, not clutter</b><span>Every training scene exists because a motion needs it.</span></div>
+    <div class="t-green"><em>02</em><b>Certify everything</b><span>Exact checks for every training pair and every arena scene.</span></div>
+    <div class="t-red"><em>03</em><b>Keep the test honest</b><span>Tune on learned validation scenes, read a sealed test once, keep every new switch off by default until it wins a paired comparison.</span></div>
+  </div>
+  <h3 class="next-h">Next</h3>
+  <ol class="next">
+    <li>Read the sealed arena test</li><li>Sideways passage through the tightest gaps</li><li>Put the student on the arena</li><li>Hardware ladder: H2 → H5</li>
+  </ol>
+  <blockquote class="closing"><span class="c-amber">One flow imagines the world a motion needs.</span><br><span class="c-teal">The other finds the motion a world demands.</span></blockquote>
+</section>
+</main>
+
+<footer class="foot">
+  <div><b>Two Flows</b> · motion2scene-flow · by <a href="https://github.com/linjiw">linjiw</a> · updated 12 October 2026</div>
+  <div>More: <a href="notebook.html">September research notebook</a> · <a href="two-flows/">Two Flows deck with 3-D viewers (9 Oct)</a> · <a href="https://github.com/linjiw/motion2scene-flow">GitHub</a></div>
+  <div class="small">All robot footage is Isaac Lab closed-loop physics replayed in MuJoCo, or a MuJoCo rehearsal; nothing shown has run on hardware. Numbers are dev-grade results as of the date above; the sealed arena test was unread.</div>
+</footer>
+</body>
+</html>

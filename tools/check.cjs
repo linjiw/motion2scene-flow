@@ -5,13 +5,14 @@ const path = require('node:path');
 
 (async () => {
   const base = process.env.SITE_URL || 'http://127.0.0.1:8765/';
+  const notebook = new URL('notebook.html', base).href;  // the homepage (index.html) is checked by check_home.cjs
   const output = process.env.SITE_CHECK_OUTPUT || '/tmp/m2s-site-preview/screenshots';
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
-  const response = await page.goto(base, { waitUntil: 'networkidle' });
+  const response = await page.goto(notebook, { waitUntil: 'networkidle' });
   assert.equal(response.status(), 200);
   assert.equal(await page.locator('h1').count(), 1);
   assert.equal(await page.locator('h2[id]').count(), 9);
@@ -46,13 +47,13 @@ const path = require('node:path');
   assert.equal(await page.locator('#transport-value').textContent(), '0.45');
   await page.locator('#flow-demo').screenshot({ path: path.join(output, 'interactive.png') });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(base, { waitUntil:'networkidle' });
+  await page.goto(notebook, { waitUntil:'networkidle' });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile page overflows');
   await page.screenshot({ path:path.join(output, 'mobile.png') });
   await page.locator('[data-filter="Checking"]').click();
   assert.equal(await page.locator('.study:visible').count(), 2);
   const nojs = await browser.newPage({javaScriptEnabled:false});
-  await nojs.goto(base);
+  await nojs.goto(notebook);
   assert.equal(await nojs.locator('.study').count(), 11);
   assert.equal(errors.length, 0, errors.join('\n'));
   const result = {status:'passed',url:base,chapters:9,studies:11,checkedLocalResources:checkedLinks,desktop:true,mobile:true,noPageOverflow:true,filters:true,details:true,independentClocks:true,reset:true,staticContentWithoutJS:true,consoleErrors:errors};
