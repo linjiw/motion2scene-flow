@@ -51,11 +51,24 @@ manifests distinguish source hashes from published hashes where machine-specific
 ```bash
 SITE_URL=http://127.0.0.1:8000/ node tools/check_home.cjs
 SITE_URL=http://127.0.0.1:8000/ node tools/check.cjs
+SITE_URL=https://linjiw.github.io/motion2scene-flow/ node tools/check_scroll.cjs
+SITE_URL=https://linjiw.github.io/motion2scene-flow/ node tools/check_ux.cjs
 ```
 
-The first checks the homepage: local resources, JS errors, widget behaviour, no horizontal overflow at desktop or
-phone width, and section screenshots. The second checks the notebook. Both need `playwright` or `playwright-core`
-plus a local Chrome.
+`check_home.cjs` checks the homepage: local resources, JS errors, widget behaviour, no horizontal overflow at
+desktop or phone width, and section screenshots. `check.cjs` checks the notebook. All four need `playwright` or
+`playwright-core` plus a local Chrome.
+
+`check_scroll.cjs` wheel-scrolls the whole page and reports stalls, missed anchor jumps, programmatic page
+scrolls, long tasks, layout shifts and frame times (desktop, phone, and desktop with the CPU throttled 4×).
+`check_ux.cjs` exercises every control: play buttons, chapters, clip autoplay, nav highlight, the gallery expander,
+keyboard sliders and reduced motion. Run both against a server that supports HTTP range requests, such as GitHub
+Pages; `python3 -m http.server` cannot seek video.
+
+Scroll rules for this page:
+- Never scroll the window programmatically from scroll-driven code (scroll-spy, observers). It cancels the user's
+  momentum and in-flight smooth scrolls.
+- Don't nest scroll containers in the reading flow; they capture the wheel.
 
 ## Scope
 

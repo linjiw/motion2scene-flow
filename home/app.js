@@ -58,34 +58,35 @@
   // ------------------------------------------------------------------ hero flow field
   (function hero() {
     const cv = $("#hero-field"); if (!cv) return;
-    let parts = [], visible = true, raf = 0, t = 0;
+    const ctx = cv.getContext("2d");
+    let parts = [], visible = true, raf = 0, t = 0, W = 0, H = 0, odd = false;
     function reset() {
-      const { w, h } = fit(cv);
-      const n = Math.round(Math.min(900, (w * h) / 1500));
-      parts = Array.from({ length: n }, (_, i) => ({ x: Math.random() * w, y: Math.random() * h, c: i % 2 ? "rgba(244,162,79," : "rgba(63,193,180," }));
-      const ctx = cv.getContext("2d"); ctx.fillStyle = C.ink; ctx.fillStyle = "#0f1420"; ctx.fillRect(0, 0, w, h);
-    }
-    function vel(x, y, w, h) {
-      const X = (x / w) * 6.28, Y = (y / h) * 6.28;
-      return [(Math.cos(Y * 0.9 + 0.3 * t) + 0.6 * Math.sin(X * 0.5 - 0.2 * t)) * 55, (0.5 * Math.sin(X * 0.8 + 0.25 * t) - 0.35 * Math.cos(Y * 1.3)) * 55];
+      W = cv.clientWidth; H = cv.clientHeight; cv.width = W; cv.height = H;  // DPR 1: a soft background needs no retina pixels
+      const n = Math.round(Math.min(W < 700 ? 260 : 650, (W * H) / 1800));
+      parts = Array.from({ length: n }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, a: i % 2 === 0 }));
+      ctx.fillStyle = "#0f1420"; ctx.fillRect(0, 0, W, H);
     }
     function frame() {
-      const { ctx, w, h } = fit(cv);
-      ctx.fillStyle = "rgba(15,20,32,0.075)"; ctx.fillRect(0, 0, w, h);
-      ctx.lineWidth = 1.4;
-      const dt = 1 / 60; t += dt;
-      for (const p of parts) {
-        const [vx, vy] = vel(p.x, p.y, w, h);
-        const nx = p.x + vx * dt, ny = p.y + vy * dt;
-        ctx.strokeStyle = p.c + "0.42)"; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
-        p.x = nx; p.y = ny;
-        if (p.x < 0 || p.x > w || p.y < 0 || p.y > h || Math.random() < 0.004) { p.x = Math.random() * w; p.y = Math.random() * h; }
-      }
       if (visible && !RM) raf = requestAnimationFrame(frame);
+      odd = !odd; if (odd && !RM) return;  // ~30 fps is plenty for drifting streaks
+      ctx.fillStyle = "rgba(15,20,32,0.11)"; ctx.fillRect(0, 0, W, H);
+      const dt = 1 / 30; t += dt;
+      const pa = new Path2D(), pt = new Path2D();
+      for (const p of parts) {
+        const X = (p.x / W) * 6.28, Y = (p.y / H) * 6.28;
+        const nx = p.x + (Math.cos(Y * 0.9 + 0.3 * t) + 0.6 * Math.sin(X * 0.5 - 0.2 * t)) * 55 * dt;
+        const ny = p.y + (0.5 * Math.sin(X * 0.8 + 0.25 * t) - 0.35 * Math.cos(Y * 1.3)) * 55 * dt;
+        const path = p.a ? pa : pt; path.moveTo(p.x, p.y); path.lineTo(nx, ny);
+        p.x = nx; p.y = ny;
+        if (p.x < 0 || p.x > W || p.y < 0 || p.y > H || Math.random() < 0.004) { p.x = Math.random() * W; p.y = Math.random() * H; }
+      }
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = "rgba(244,162,79,0.45)"; ctx.stroke(pa);
+      ctx.strokeStyle = "rgba(63,193,180,0.45)"; ctx.stroke(pt);
     }
     reset();
-    if (RM) { for (let i = 0; i < 160; i++) frame(); } else raf = requestAnimationFrame(frame);
-    new IntersectionObserver((es) => { visible = es[0].isIntersecting; if (visible && !RM) { cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); } }).observe(cv);
+    if (RM) { for (let i = 0; i < 90; i++) frame(); } else raf = requestAnimationFrame(frame);
+    new IntersectionObserver((es) => { visible = es[0].isIntersecting; cancelAnimationFrame(raf); if (visible && !RM) raf = requestAnimationFrame(frame); }).observe(cv);
     let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(reset, 150); });
   })();
 
@@ -111,15 +112,32 @@
         if (RM) v.setAttribute("controls", ""); else v.play().catch(() => {});
       } else if (!v.paused) v.pause();
     }
-  }, { threshold: 0.35 });
+  }, { threshold: 0.5 });
   $$("video[data-src]").forEach((v) => clipIO.observe(v));
+  document.addEventListener("visibilitychange", () => { if (document.hidden) $$("video").forEach((v) => { if (!v.paused && v.id !== "film") v.pause(); }); });
 
+  $$(".expander").forEach((fr) => {
+    const btn = $(".expand-btn", fr.parentElement);
+    btn.addEventListener("click", () => { const open = fr.classList.toggle("open"); btn.textContent = open ? "Show less ↑" : "Show all 17 families ↓"; btn.setAttribute("aria-expanded", open); if (!open) fr.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+  });
   const barIO = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); barIO.unobserve(e.target); } }), { threshold: 0.3 });
   $$("[data-anim]").forEach((el) => barIO.observe(el));
 
+  // Scroll-spy. It must never scroll the page: any programmatic page scroll cancels the user's wheel/trackpad
+  // momentum and in-flight smooth anchor scrolls (the old scrollIntoView call made the page "stick" at every
+  // section boundary). Only the horizontally scrolling nav strip is moved to keep the active link visible.
+  const navEl = $(".nav nav");
   const navLinks = new Map($$(".nav nav a").map((a) => [a.getAttribute("href").slice(1), a]));
   const spy = new IntersectionObserver((es) => {
-    for (const e of es) if (e.isIntersecting) { navLinks.forEach((a) => a.classList.remove("on")); const a = navLinks.get(e.target.id); if (a) { a.classList.add("on"); a.scrollIntoView({ block: "nearest", inline: "nearest" }); } }
+    for (const e of es) {
+      if (!e.isIntersecting) continue;
+      const a = navLinks.get(e.target.id); if (!a || a.classList.contains("on")) continue;
+      navLinks.forEach((x) => x.classList.remove("on")); a.classList.add("on");
+      if (navEl.scrollWidth > navEl.clientWidth + 1) {
+        const nr = navEl.getBoundingClientRect(), ar = a.getBoundingClientRect();
+        if (ar.left < nr.left || ar.right > nr.right) navEl.scrollBy({ left: ar.left - nr.left - (nr.width - ar.width) / 2, behavior: "smooth" });
+      }
+    }
   }, { rootMargin: "-40% 0px -55% 0px" });
   ["video", "idea", "flow-matching", "sceneflow", "teacher", "arena", "results", "student", "deploy"].forEach((id) => { const s = document.getElementById(id); if (s) spy.observe(s); });
 
