@@ -588,6 +588,243 @@ svg.diagram .mono{font-family:var(--f-mono);font-size:12px;fill:var(--ink-3)}
   <div class="foot"><span>closed_loop/planner.py · wholebody/passage_* · PASSAGE convention (data at t = 0)</span><span>11 / 24</span></div>
 </section>
 
+
+<!-- 11a · how the planner learns -->
+<section class="slide" id="s11a" data-title="Training windows">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 1</b> · from pairs to training examples</div>
+  <h2>One SceneFlow pair becomes many training windows</h2>
+  <div class="row grow">
+    <div class="col" style="flex:1.55">
+      <div class="media grow contain"><video muted loop playsinline preload="none" data-src="media/tr_windows.mp4" poster="media/tr_windows.jpg" aria-label="A training window slides along a ducking motion while the elevation map the network sees updates"></video></div>
+      <div class="cap"><b>Teacher C's real training data</b> (Kimodo group g00001, duck future, its cycle-filtered SceneFlow scene). Every 0.1 s an anchor cuts a window; the inset is the map the network gets for that window.</div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="card motion">
+        <h3>One training example</h3>
+        <dl class="kv">
+          <dt>history</dt><dd>4 frames (80 ms) of the measured 65-D state, ending at the anchor</dd>
+          <dt>target Y</dt><dd>the next 25 frames (0.5 s at 50 Hz) of the real motion</dd>
+          <dt>goal</dt><dd>where the motion is 1 s later: x, y, cos Δyaw, sin Δyaw in the anchor frame</dd>
+          <dt>map</dt><dd>the ≤ 8 nearest boxes, in the anchor frame, rasterized into a 3 × 31 × 61 map (5 cm cells, 3 m × 1.5 m around the torso)</dd>
+          <dt>anchors</dt><dd>every 0.1 s from 0.5 s before to 1.2 s after the branch: up to 18 windows per pair</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>The 65-D state, per frame</h3>
+        <table class="t" style="font-size:.78em">
+          <tbody>
+            <tr><td>root height</td><td class="r num">1</td><td>gravity in the root frame</td><td class="r num">3</td></tr>
+            <tr><td>planar velocity (heading frame)</td><td class="r num">2</td><td>yaw rate</td><td class="r num">1</td></tr>
+            <tr><td>29 joint angles</td><td class="r num">29</td><td>29 joint velocities</td><td class="r num">29</td></tr>
+          </tbody>
+        </table>
+        <p class="tiny">Global position and yaw are not predicted: they are integrated from the anchor. Height and joints are learned relative to the anchor frame (residual), then normalized.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>datagen/hallucinate.windows · scenegen/export_windows.py · wholebody/passage_state.py · elevation.py</span><span>·</span></div>
+</section>
+
+<!-- 11b -->
+<section class="slide alt" id="s11b" data-title="Contrast">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 2</b> · why the pairs teach the map</div>
+  <h2>Same past, different scene, different future</h2>
+  <div class="row grow">
+    <div class="col" style="flex:1.55">
+      <div class="media grow contain"><video muted loop playsinline preload="none" data-src="media/tr_siblings.mp4" poster="media/tr_siblings.jpg" aria-label="Nine futures of one shared past, each with its own scene"></video></div>
+      <div class="cap"><b>One group, nine futures.</b> The walk keeps an empty scene; every other future gets the SceneFlow scene that makes it necessary. Up to the branch the nine windows are the same (to within 1 cm).</div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="note motion" style="font-size:.92em">With the same history and nearly the same goal, the <b>map is the only input that tells the duck from the walk</b>. Minimizing the loss on these windows forces the network to read it. Without such pairs, a planner can predict the future from the history alone and ignore the map (our September diagnostics: identical outputs for empty, true and irrelevant scenes).</div>
+      <div class="card">
+        <h3>What one batch of 128 holds</h3>
+        <div class="chart" id="chart-mix"></div>
+        <p class="tiny">83,444 training windows: 68,180 from the Kimodo indoor-navigation corpus (walking and turning, with empty or compatible scenes) and 15,264 SceneFlow necessity windows from 148 contrast groups, repeated ×4 so they fill ~47% of every batch.</p>
+      </div>
+      <div class="cols-2" style="gap:.8em">
+        <div class="stat"><span class="v num motion-t">2,664</span><span class="l">distinct motion windows under the 15,264 necessity windows</span></div>
+        <div class="stat"><span class="v num motion-t">+15 pp</span><span class="l">held-out goals from contrastive pairs (F23, rule engine)</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>artifacts/halluc-gen-v3a-cyc · e1-v3a-cyc_s0/receipt.json · train_passage.sample_multiplicity</span><span>·</span></div>
+</section>
+
+<!-- 11c -->
+<section class="slide" id="s11c" data-title="The network">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 3</b> · the network</div>
+  <h2>A transformer that reads the map by cross-attention</h2>
+  <div class="dwrap"><svg class="diagram" viewBox="0 0 1480 470" role="img" aria-label="Planner network: history and noisy future tokens pass through six blocks with adaptive layer norm and cross-attention to map tokens; output is a velocity per future frame">
+    <defs>
+      <marker id="ah5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--ink-3)"/></marker>
+    </defs>
+    <!-- token row -->
+    <text x="0" y="22" class="mono">token sequence (29 × 256)</text>
+    <g>
+      <rect x="0" y="34" width="140" height="56" rx="8" fill="var(--paper)" stroke="var(--motion)" stroke-width="1.5"/>
+      <text x="12" y="58" class="lbl" style="font-size:14px">4 history tokens</text>
+      <text x="12" y="78" class="sub">clean, flow time 0</text>
+      <rect x="150" y="34" width="330" height="56" rx="8" fill="var(--motion-soft)" stroke="var(--motion)" stroke-width="1.5"/>
+      <text x="162" y="58" class="lbl" style="font-size:14px;fill:var(--motion-ink)">25 noisy future tokens x_t</text>
+      <text x="162" y="78" class="sub">+ position + sinusoidal embedding of t</text>
+    </g>
+    <line x1="240" y1="94" x2="240" y2="128" stroke="var(--ink-3)" stroke-width="2" marker-end="url(#ah5)"/>
+    <!-- block -->
+    <rect x="0" y="132" width="560" height="232" rx="14" fill="var(--paper-2)" stroke="var(--rule-2)"/>
+    <text x="16" y="158" class="lbl">Block × 6</text>
+    <text x="110" y="158" class="mono">d = 256 · 4 heads</text>
+    <rect x="16" y="172" width="528" height="48" rx="8" fill="var(--paper)" stroke="var(--rule-2)"/>
+    <text x="30" y="201" class="sub">adaLN → self-attention over the 29 tokens → gated residual</text>
+    <rect x="16" y="230" width="528" height="48" rx="8" fill="var(--scene-soft)" stroke="var(--scene)"/>
+    <text x="30" y="259" class="sub" style="fill:var(--scene-ink)">LayerNorm → cross-attention to the 128 map tokens → residual</text>
+    <rect x="16" y="288" width="528" height="48" rx="8" fill="var(--paper)" stroke="var(--rule-2)"/>
+    <text x="30" y="317" class="sub">adaLN → MLP (256 → 1024 → 256) → gated residual</text>
+    <line x1="240" y1="368" x2="240" y2="398" stroke="var(--ink-3)" stroke-width="2" marker-end="url(#ah5)"/>
+    <rect x="80" y="402" width="400" height="56" rx="8" fill="var(--motion-soft)" stroke="var(--motion)" stroke-width="1.5"/>
+    <text x="96" y="426" class="lbl" style="font-size:14px;fill:var(--motion-ink)">velocity v_θ for the 25 future frames</text>
+    <text x="96" y="446" class="sub">LayerNorm → linear 256 → 65 (zero-initialized)</text>
+    <!-- conditioning -->
+    <rect x="640" y="34" width="380" height="250" rx="14" fill="var(--paper)" stroke="var(--rule-2)"/>
+    <text x="656" y="60" class="lbl">Conditioning vector c</text>
+    <text x="656" y="88" class="sub">MLP(history, 4 × 65 flattened)</text>
+    <text x="656" y="112" class="sub">+ MLP(goal, 4)</text>
+    <text x="656" y="136" class="sub">+ MLP(anchor state, absolute)</text>
+    <text x="656" y="160" class="sub" style="fill:var(--scene-ink)">+ pooled map token</text>
+    <text x="656" y="196" class="mono">c → scale, shift, gate for</text>
+    <text x="656" y="216" class="mono">every block (adaLN-Zero:</text>
+    <text x="656" y="236" class="mono">starts as identity)</text>
+    <path d="M640,200 C600,200 590,200 562,200" stroke="var(--ink-3)" stroke-width="2" fill="none" marker-end="url(#ah5)"/>
+    <path d="M640,230 C600,230 590,312 562,312" stroke="var(--ink-3)" stroke-width="2" fill="none" marker-end="url(#ah5)"/>
+    <!-- map -->
+    <rect x="1080" y="34" width="400" height="330" rx="14" fill="var(--scene-soft)" stroke="var(--scene)" stroke-width="1.5"/>
+    <text x="1096" y="60" class="lbl" style="fill:var(--scene-ink)">Map encoder</text>
+    <text x="1096" y="88" class="sub">3 × 31 × 61 elevation map</text>
+    <text x="1096" y="108" class="sub">support · lateral · overhead heights</text>
+    <text x="1096" y="140" class="mono">conv 3→32 · GELU</text>
+    <text x="1096" y="162" class="mono">conv 32→64, stride 2 · GELU</text>
+    <text x="1096" y="184" class="mono">conv 64→256, stride 2 · GELU</text>
+    <text x="1096" y="216" class="sub">→ 8 × 16 = 128 map tokens (~20 cm)</text>
+    <text x="1096" y="238" class="sub">+ learned position embedding</text>
+    <text x="1096" y="272" class="sub">mean of the tokens → pooled map token</text>
+    <path d="M1080,250 C900,330 760,250 562,254" stroke="var(--scene)" stroke-width="2.5" fill="none" stroke-dasharray="6 5" marker-end="url(#ah5)"/>
+    <path d="M1080,272 C1050,272 1040,160 1022,160" stroke="var(--scene)" stroke-width="2" fill="none" marker-end="url(#ah5)"/>
+    <text x="640" y="330" class="mono">9,435,137 parameters</text>
+    <text x="640" y="352" class="mono">same network for teacher and lidar student;</text>
+    <text x="640" y="372" class="mono">only the map source differs</text>
+  </svg></div>
+  <div class="cols-3">
+    <div class="card motion"><h3>Why history as tokens</h3><p class="small">The current state enters the attention directly. Earlier versions conditioned only through a pooled vector and drifted; the residual frame and history tokens cut the first-frame jump from 0.78 to 0.056 rad (21 Sept.).</p></div>
+    <div class="card scene"><h3>Why cross-attention to the map</h3><p class="small">Each future frame can look up the cells it will pass through. The pooled map token also modulates every block, so the whole chunk knows "there is a beam ahead".</p></div>
+    <div class="card"><h3>Per-token flow time</h3><p class="small">Each token carries its own t, so a later replan can keep frames already committed and denoise the rest. Teacher C trains with one t per window (soft RTC off).</p></div>
+  </div>
+  <div class="foot"><span>wholebody/passage_model.py (PassageExpert, PassageBlock, MapEncoder) · e1-v3a-cyc_s0/receipt.json</span><span>·</span></div>
+</section>
+
+<!-- 11d -->
+<section class="slide alt" id="s11d" data-title="The loss">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 4</b> · the loss</div>
+  <h2>Flow matching: learn the velocity that turns noise into the real future</h2>
+  <div class="row grow">
+    <div class="col" style="flex:1.4">
+      <div class="media grow contain"><video muted loop playsinline preload="none" data-src="media/tr_loss.mp4" poster="media/tr_loss.jpg" aria-label="Top: the noised future at flow time t; bottom: teacher C's one-step estimate of the future"></video></div>
+      <div class="cap"><b>One real training window</b> (the duck, 0.2 s before the branch, fixed noise). Top: what the network is given. Bottom: the clean future it recovers in a single step, Ŷ = x_t − t·v. White ghost: the truth at +0.5 s.</div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="eq">x<sub>t</sub> = (1 − t)·Y + t·ε<br>t ~ U(0, 1), &nbsp;ε ~ N(0, I)<br>target velocity u = ε − Y<br>ℒ = Huber( v<sub>θ</sub>(x<sub>t</sub>, t | history, goal, map) − u )</div>
+      <ul class="tight small">
+        <li>Y lives in the normalized, anchor-relative 65-D space; the loss averages over 25 frames × 65 numbers.</li>
+        <li>Data at t = 0, noise at t = 1. At t = 1 the network must guess the whole future from history, goal and map; near t = 0 the future is visible and only the noise is unknown.</li>
+        <li>No geometry, contact or collision terms in teacher C: scene awareness has to come from the paired data. Clearance enters later, as guidance at sampling time.</li>
+      </ul>
+      <p class="tiny">AdamW, lr 2×10⁻⁴, weight decay 0.01, gradient clip 1.0, batch 128, 30,000 steps (~30 epochs), 21 minutes on one RTX 5080.</p>
+      <h3 style="margin-top:.2em">Training loss, teacher C, 3 seeds</h3>
+      <div class="chart" id="chart-train"></div>
+    </div>
+  </div>
+  <div class="foot"><span>wholebody/passage_flow.cfm_loss · train_passage.run · e1-v3a-cyc_s{0,1,2}/history.json</span><span>·</span></div>
+</section>
+
+<!-- 11e -->
+<section class="slide" id="s11e" data-title="Open a training window">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 5</b> · interactive</div>
+  <h2>Open teacher C's training data</h2>
+  <div class="viewer" id="trv">
+    <div class="canvas"><div class="loading">Loading training windows…</div><div class="hud" id="trv-hud">window</div><div class="hint">drag to orbit · scroll to zoom</div></div>
+    <div class="panel">
+      <div><label class="h">View</label><div class="seg" role="group" aria-label="View"><button id="trv-m0" aria-pressed="true">Windows</button><button id="trv-m1" aria-pressed="false">Noise</button><button id="trv-m2" aria-pressed="false">Swap map</button></div></div>
+      <div id="trv-browse">
+        <div><label class="h" for="trv-target">Future (same past)</label><select id="trv-target"></select></div>
+        <div style="margin-top:.6em"><label class="h" for="trv-k">Anchor</label><input type="range" id="trv-k" min="0" max="14" step="1" value="3"></div>
+      </div>
+      <div id="trv-noise" hidden>
+        <div><label class="h" for="trv-t">Flow time t (1 = noise, 0 = data)</label><input type="range" id="trv-t" min="0" max="1" step="0.025" value="0.5"></div>
+        <label class="check"><input type="checkbox" id="trv-showx" checked> noised input x<sub>t</sub> (grey)</label>
+        <label class="check"><input type="checkbox" id="trv-showy" checked> network estimate Ŷ (teal)</label>
+        <canvas id="trv-curve" width="300" height="90" style="width:100%;height:auto;border:1px solid var(--rule);border-radius:8px;background:var(--paper)"></canvas>
+      </div>
+      <div id="trv-swap" hidden>
+        <div class="seg" role="group" aria-label="Map"><button id="trv-sc" aria-pressed="true">Beam in the map</button><button id="trv-em" aria-pressed="false">Empty map</button></div>
+        <p class="tiny" style="margin-top:.5em">16 samples, 10 Euler steps, the same past, goal and noise in both. Only the map differs.</p>
+      </div>
+      <div><label class="h">Map the network sees</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.35em">
+          <div><canvas id="trv-map0" width="61" height="31" style="width:100%;image-rendering:pixelated;border:1px solid var(--rule)"></canvas><div class="tiny">support</div></div>
+          <div><canvas id="trv-map1" width="61" height="31" style="width:100%;image-rendering:pixelated;border:1px solid var(--rule)"></canvas><div class="tiny">lateral</div></div>
+          <div><canvas id="trv-map2" width="61" height="31" style="width:100%;image-rendering:pixelated;border:1px solid var(--rule)"></canvas><div class="tiny">overhead</div></div>
+        </div>
+      </div>
+      <dl class="stats" id="trv-stats"></dl>
+    </div>
+  </div>
+  <div class="foot"><span>data: halluc-gen-v3a-cyc group kc/g00001 · teacher e1-v3a-cyc_s0 run on CPU (capture_training.py)</span><span>·</span></div>
+</section>
+
+<!-- 11f -->
+<section class="slide alt" id="s11f" data-title="Does the map matter">
+  <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>How the planner learns · 6</b> · what it learned</div>
+  <h2>Hide the beam, and the trained network ducks less</h2>
+  <div class="row grow">
+    <div class="col" style="flex:1.55">
+      <div class="media grow contain"><video muted loop playsinline preload="none" data-src="media/tr_swap.mp4" poster="media/tr_swap.jpg" aria-label="Sixteen samples with the beam in the map versus an empty map"></video></div>
+      <div class="cap"><b>Same past, same goal, same 16 noises; only the map differs.</b> The real boxes are drawn faintly on the right so you can see what the network was not shown.</div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="cols-2" style="gap:.8em">
+        <div class="stat"><span class="v num scene-t">0.63 m</span><span class="l">mean lowest pelvis, beam in the map</span></div>
+        <div class="stat"><span class="v num">0.74 m</span><span class="l">mean lowest pelvis, empty map</span></div>
+      </div>
+      <p class="small">The true duck goes down to 0.61 m. The map is worth about 11 cm of crouch here, read 0.2 s before the branch. On duck windows from three groups the gap is 6–11 cm just before the branch, and it fades once the history already shows the descent.</p>
+      <div class="note warn">The network reads the map, but shallowly. It cannot pick the true scene out of 8 (F77), and in closed loop its raw proposals barely change with more data variety (F89). Guidance at sampling time supplies the rest. That split, learned proposals plus geometric search, is what runs on the robot, next.</div>
+      <div class="card motion">
+        <h3>At deployment</h3>
+        <p class="small">10 Euler steps from noise, two 0.5 s chunks chained (chunk 2 starts from chunk 1's last 4 frames), 16 candidates in parallel, clearance guidance, select the safe one closest to the goal, SONIC tracks it, replan every 0.16 s.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>capture_training.py swap · closed_loop/planner.py (_sample_guided, _candidates) · F77 · F89</span><span>·</span></div>
+</section>
+
+<!-- 11g -->
+<section class="slide statement" id="s11g" data-title="How the planner learns, narrated">
+  <div class="row grow" style="gap:2.4em;align-items:center">
+    <div class="col" style="flex:.8;gap:1em">
+      <div class="eyebrow" style="color:var(--statement-2)">Narrated · 2:34</div>
+      <h2 style="font-size:2.7em">How the planner learns</h2>
+      <p class="lede">From SceneFlow pairs to training windows, the network, the flow-matching loss, a test of whether it reads the map, and what runs on the robot. Captions are on by default.</p>
+      <div class="flows">
+        <div class="flowline"><span class="arrow scene">pairs</span><span class="d">same past, different scene, different future</span></div>
+        <div class="flowline"><span class="arrow motion">windows</span><span class="d">4 history + 25 future frames, goal, 3 × 31 × 61 map</span></div>
+        <div class="flowline"><span class="arrow motion">loss</span><span class="d">Huber(v<sub>θ</sub>(x<sub>t</sub>, t | h, g, map) − (ε − Y))</span></div>
+        <div class="flowline"><span class="arrow arena">robot</span><span class="d">16 samples, guidance, select, SONIC, replan 0.16 s</span></div>
+      </div>
+    </div>
+    <div class="col" style="flex:1.6">
+      <div class="media" style="aspect-ratio:16/9;border:0;background:#000"><video id="walk2" controls playsinline preload="none" data-src="media/planner_learning.mp4" poster="media/planner_learning.jpg" aria-label="Narrated video: how the planner learns"></video></div>
+    </div>
+  </div>
+  <div class="foot"><span>Kokoro-82M narration, generated offline · every clip from teacher C's real data and checkpoint</span><span>·</span></div>
+</section>
+
 <!-- 12 -->
 <section class="slide" id="s12" data-title="Planner flow at a beam">
   <div class="eyebrow"><span class="dot" style="background:var(--motion)"></span><b>Flow 2 · planner</b> · demo</div>
@@ -892,6 +1129,7 @@ svg.diagram .mono{font-family:var(--f-mono);font-size:12px;fill:var(--ink-3)}
   const slides = Array.from(document.querySelectorAll('.slide'));
   const N = slides.length;
   if(capture) app.classList.add('capture');
+  slides.forEach((sl, i)=>{ const f = sl.querySelector('.foot span:last-child'); if(f) f.textContent = `${i + 1} / ${N}`; });
   let cur = 0, reading = false;
   function store(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
   function load(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
@@ -913,7 +1151,7 @@ svg.diagram .mono{font-family:var(--f-mono);font-size:12px;fill:var(--ink-3)}
     s.querySelectorAll('video').forEach(v=>{
       if(capture) return;
       ensureSrc(v);
-      if(v.id === 'walk') return;
+      if(v.id === 'walk' || v.id === 'walk2') return;
       const p = v.play(); if(p && p.catch) p.catch(()=>{});
     });
     s.dispatchEvent(new Event('slide-visible'));
@@ -999,8 +1237,43 @@ svg.diagram .mono{font-family:var(--f-mono);font-size:12px;fill:var(--ink-3)}
       });
     });
   }
+  function lines(id, series, opt){
+    const host = document.getElementById(id); if(!host) return;
+    const W = opt.width || 600, H = opt.height || 240, l = 52, r = 14, t = 10, b = 34;
+    const svg = el('svg', {viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label': opt.aria || ''}, host);
+    const tip = document.createElement('div'); tip.className = 'tip'; host.appendChild(tip);
+    const X = v => l + (W - l - r) * (v - opt.x0) / (opt.x1 - opt.x0), Y = v => t + (H - t - b) * (1 - (v - opt.y0) / (opt.y1 - opt.y0));
+    opt.yticks.forEach(v=>{ el('line', {x1:l, x2:W - r, y1:Y(v), y2:Y(v), class:'grid'}, svg); const tt = el('text', {x:l - 8, y:Y(v) + 4, 'text-anchor':'end'}, svg); tt.textContent = v.toFixed(2); });
+    opt.xticks.forEach(v=>{ const tt = el('text', {x:X(v), y:H - 10, 'text-anchor':'middle'}, svg); tt.textContent = opt.xfmt(v); });
+    el('line', {x1:l, x2:W - r, y1:H - b, y2:H - b, class:'axis'}, svg);
+    series.forEach(sr=>{
+      if(sr.dots){ sr.pts.forEach(([x, y])=>el('circle', {cx:X(x), cy:Y(y), r:4.5, fill:css(sr.color), stroke:css('--paper'), 'stroke-width':2}, svg)); return; }
+      el('polyline', {points: sr.pts.map(([x, y])=>`${X(x)},${Y(y)}`).join(' '), fill:'none', stroke:css(sr.color), 'stroke-width':2, 'stroke-opacity': sr.op || 1, 'stroke-linejoin':'round'}, svg);
+    });
+    const cross = el('line', {x1:0, x2:0, y1:t, y2:H - b, stroke:css('--ink-3'), 'stroke-dasharray':'3 3', opacity:0}, svg);
+    const hit = el('rect', {x:l, y:t, width:W - l - r, height:H - t - b, class:'hit'}, svg);
+    hit.addEventListener('mousemove', ev=>{
+      const bb = svg.getBoundingClientRect(), hb = host.getBoundingClientRect();
+      const xv = opt.x0 + (opt.x1 - opt.x0) * ((ev.clientX - bb.left) / bb.width * W - l) / (W - l - r);
+      const parts = series.map(sr=>{ let best = sr.pts[0]; sr.pts.forEach(p=>{ if(Math.abs(p[0] - xv) < Math.abs(best[0] - xv)) best = p; }); return `${sr.name}: ${best[1].toFixed(3)}`; });
+      cross.setAttribute('x1', X(Math.max(opt.x0, Math.min(opt.x1, xv)))); cross.setAttribute('x2', X(Math.max(opt.x0, Math.min(opt.x1, xv)))); cross.setAttribute('opacity', 1);
+      tip.textContent = `${opt.xfmt(Math.round(xv / 500) * 500)} · ` + parts.join(' · ');
+      tip.style.left = Math.min(ev.clientX - hb.left + 12, hb.width - 260) + 'px'; tip.style.top = (ev.clientY - hb.top - 34) + 'px'; tip.style.opacity = 1; });
+    hit.addEventListener('mouseleave', ()=>{ tip.style.opacity = 0; cross.setAttribute('opacity', 0); });
+  }
+  const CURVES = {"0": {"train": [[500, 0.2509], [1000, 0.2131], [1500, 0.1952], [2000, 0.1995], [2500, 0.166], [3000, 0.1749], [3500, 0.1565], [4000, 0.1622], [4500, 0.1453], [5000, 0.1619], [5500, 0.1522], [6000, 0.1383], [6500, 0.159], [7000, 0.144], [7500, 0.1503], [8000, 0.1481], [8500, 0.1534], [9000, 0.1368], [9500, 0.1342], [10000, 0.13], [10500, 0.1381], [11000, 0.1349], [11500, 0.1323], [12000, 0.1402], [12500, 0.1203], [13000, 0.1224], [13500, 0.1343], [14000, 0.1313], [14500, 0.1307], [15000, 0.1211], [15500, 0.1152], [16000, 0.1254], [16500, 0.1282], [17000, 0.1147], [17500, 0.1263], [18000, 0.1243], [18500, 0.1124], [19000, 0.1225], [19500, 0.1248], [20000, 0.1169], [20500, 0.1244], [21000, 0.1277], [21500, 0.1062], [22000, 0.103], [22500, 0.1092], [23000, 0.121], [23500, 0.1109], [24000, 0.1036], [24500, 0.1322], [25000, 0.1204], [25500, 0.1199], [26000, 0.1274], [26500, 0.114], [27000, 0.1028], [27500, 0.1119], [28000, 0.1103], [28500, 0.1105], [29000, 0.1087], [29500, 0.1128], [30000, 0.1089]], "eval": [[10000, 0.1599], [20000, 0.1407], [30000, 0.1384]]}, "1": {"train": [[500, 0.2595], [1000, 0.2195], [1500, 0.1861], [2000, 0.1901], [2500, 0.1775], [3000, 0.1685], [3500, 0.1603], [4000, 0.155], [4500, 0.1592], [5000, 0.1396], [5500, 0.1453], [6000, 0.1396], [6500, 0.1409], [7000, 0.1368], [7500, 0.1701], [8000, 0.1332], [8500, 0.1488], [9000, 0.1404], [9500, 0.1454], [10000, 0.1295], [10500, 0.1513], [11000, 0.14], [11500, 0.126], [12000, 0.134], [12500, 0.1258], [13000, 0.1262], [13500, 0.1305], [14000, 0.1266], [14500, 0.1148], [15000, 0.1146], [15500, 0.1127], [16000, 0.1152], [16500, 0.1206], [17000, 0.1237], [17500, 0.1213], [18000, 0.1112], [18500, 0.125], [19000, 0.1202], [19500, 0.1199], [20000, 0.1423], [20500, 0.1194], [21000, 0.1088], [21500, 0.1026], [22000, 0.1206], [22500, 0.1113], [23000, 0.1157], [23500, 0.1143], [24000, 0.1186], [24500, 0.1147], [25000, 0.1085], [25500, 0.1273], [26000, 0.1108], [26500, 0.1059], [27000, 0.0966], [27500, 0.1131], [28000, 0.1135], [28500, 0.1164], [29000, 0.1042], [29500, 0.0999], [30000, 0.1063]], "eval": [[10000, 0.1567], [20000, 0.1451], [30000, 0.141]]}, "2": {"train": [[500, 0.2545], [1000, 0.2159], [1500, 0.1726], [2000, 0.1754], [2500, 0.1742], [3000, 0.1642], [3500, 0.1675], [4000, 0.1461], [4500, 0.1557], [5000, 0.1548], [5500, 0.1578], [6000, 0.1406], [6500, 0.1643], [7000, 0.148], [7500, 0.1433], [8000, 0.1433], [8500, 0.1297], [9000, 0.1286], [9500, 0.1422], [10000, 0.136], [10500, 0.1286], [11000, 0.1426], [11500, 0.1319], [12000, 0.1433], [12500, 0.1214], [13000, 0.1342], [13500, 0.1212], [14000, 0.1345], [14500, 0.1339], [15000, 0.1404], [15500, 0.1183], [16000, 0.1316], [16500, 0.1175], [17000, 0.1353], [17500, 0.1165], [18000, 0.1246], [18500, 0.1285], [19000, 0.116], [19500, 0.1137], [20000, 0.1085], [20500, 0.1174], [21000, 0.1106], [21500, 0.1071], [22000, 0.1221], [22500, 0.1241], [23000, 0.1174], [23500, 0.1213], [24000, 0.114], [24500, 0.1084], [25000, 0.1073], [25500, 0.1152], [26000, 0.1101], [26500, 0.1104], [27000, 0.112], [27500, 0.1205], [28000, 0.1114], [28500, 0.1142], [29000, 0.111], [29500, 0.1135], [30000, 0.1044]], "eval": [[10000, 0.1621], [20000, 0.1475], [30000, 0.1365]]}};
   function draw(){
     document.querySelectorAll('.chart').forEach(c=>c.innerHTML = '');
+    lines('chart-train', [
+      {name:'train s0', pts:CURVES['0'].train, color:'--motion'}, {name:'train s1', pts:CURVES['1'].train, color:'--motion', op:.55},
+      {name:'train s2', pts:CURVES['2'].train, color:'--motion', op:.3},
+      {name:'eval (all seeds)', pts:[].concat(CURVES['0'].eval, CURVES['1'].eval, CURVES['2'].eval), color:'--scene', dots:true}],
+      {x0:0, x1:30000, y0:0.08, y1:0.27, yticks:[0.1, 0.15, 0.2, 0.25], xticks:[0, 10000, 20000, 30000], xfmt:v=>v === 0 ? '0' : `${v / 1000}k steps`, width:600, height:180,
+       aria:'Teacher C flow-matching loss over training steps, three seeds'});
+    hbar('chart-mix', [
+      {label:'corpus windows (walk, turn)', values:[52.8], color:'--arena', note:'68,180 windows, drawn once per epoch'},
+      {label:'SceneFlow necessity windows', values:[47.2], color:'--motion', note:'15,264 windows, drawn 4× per epoch'},
+    ], [{name:'share', color:'--motion'}], {max:100, ticks:[0, 25, 50, 75, 100], fmt:v=>`${v.toFixed(0)}% of samples`, labW:220, rowH:30, width:560, aria:'Training sample mix'});
     hbar('chart-sf', [
       {label:'v3a · real-object vocabulary', values:[0.546, 0.435]},
       {label:'+ 4× human decision points', values:[0.657, 0.687]},
@@ -1309,6 +1582,124 @@ const V3 = (function(){
   slide.addEventListener('slide-hidden', ()=>{ if(runner) runner.stop(); });
   if(slide.classList.contains('on') && window.TF && !window.TF.reading) start();
 })();
+
+/* ---------------- training-window viewer ---------------- */
+(function(){
+  const host = document.getElementById('trv'); if(!host || typeof THREE === 'undefined') return;
+  const slide = host.closest('.slide');
+  let started = false, data = null, W, now, ghosts, runner, boxMeshes = [], lines = [], goal, histPts;
+  const st = {mode:0, target:'duck', k:3, t:0.5, arm:'scene', showx:true, showy:true};
+  const $ = id=>document.getElementById(id);
+  const P = (x, y, z)=>V3.P(x, y, z);
+  function windowsOf(n){ return data.targets[n]; }
+  function curWin(){ const ws = windowsOf(st.target); return ws[Math.max(0, Math.min(ws.length - 1, st.k))]; }
+  function setBoxes(boxes, faint){
+    boxMeshes.forEach(m=>W.scene.remove(m)); boxMeshes = [];
+    boxes.forEach(b=>{ const over = b.zb >= .45; const m = V3.box(W.scene, faint ? .14 : .92);
+      V3.placeBox(m, Object.assign({}, b, {zb:Math.max(b.zb, 0)}), 0); m.material.color.set(over ? 0xE58E33 : 0xB84A3B); boxMeshes.push(m); });
+  }
+  function drawMap(b64){
+    const raw = atob(b64), n = 31 * 61;
+    for(let c = 0; c < 3; c++){
+      const cv = $('trv-map' + c), g = cv.getContext('2d'), img = g.createImageData(61, 31);
+      for(let y = 0; y < 31; y++) for(let x = 0; x < 61; x++){
+        const v = raw.charCodeAt(c * n + y * 61 + x) / 255 * 2.5;
+        const a = c === 2 ? Math.min(1, Math.max(0, (2.5 - v) / 1.7)) : Math.min(1, v / 2);
+        const col = c === 0 ? [184, 74, 59] : (c === 1 ? [204, 158, 51] : [229, 142, 51]);
+        const o = ((30 - y) * 61 + x) * 4;
+        img.data[o] = 246 * (1 - a) + col[0] * a; img.data[o + 1] = 248 * (1 - a) + col[1] * a; img.data[o + 2] = 248 * (1 - a) + col[2] * a; img.data[o + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+      g.fillStyle = '#0E1719'; g.fillRect(29, 14, 3, 3);
+    }
+  }
+  function setLine(i, pts, color, visible){
+    lines[i].geometry.setFromPoints(pts.map(p=>P(p[0], p[1], Math.max(p[2], 0.02))));
+    lines[i].material.color.set(color); lines[i].visible = visible;
+  }
+  function hideAll(){ for(let i = 0; i < 32; i++) ghosts.hide(i); lines.forEach(l=>l.visible = false); goal.visible = false; histPts.visible = false; }
+  function stats(rows){ $('trv-stats').innerHTML = rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join(''); }
+  function curve(){
+    const cv = $('trv-curve'); if(!cv) return; const g = cv.getContext('2d'), L = data.loss; const w = cv.width, h = cv.height;
+    g.clearRect(0, 0, w, h); const mx = Math.max(...L.huber, .5);
+    g.strokeStyle = '#B9C3C6'; g.beginPath(); g.moveTo(8, h - 14); g.lineTo(w - 8, h - 14); g.stroke();
+    g.strokeStyle = '#0095A0'; g.lineWidth = 2; g.beginPath();
+    L.t.forEach((t, i)=>{ const x = 8 + (w - 16) * (1 - t), y = 6 + (h - 22) * (1 - L.huber[i] / mx); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    const i = nearestT(st.t); const x = 8 + (w - 16) * (1 - L.t[i]), y = 6 + (h - 22) * (1 - L.huber[i] / mx);
+    g.fillStyle = '#0E1719'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+    g.fillStyle = '#5E6C73'; g.font = '10px IBM Plex Mono, monospace'; g.fillText('t=1', 8, h - 2); g.fillText('t=0', w - 30, h - 2);
+  }
+  function nearestT(t){ let b = 0; data.loss.t.forEach((v, i)=>{ if(Math.abs(v - t) < Math.abs(data.loss.t[b] - t)) b = i; }); return b; }
+  function render(){
+    if(!data) return;
+    hideAll();
+    if(st.mode === 0){
+      const w = curWin();
+      setBoxes(w.boxes, false); drawMap(w.map); now.pose(0, w.now);
+      w.fut.forEach((kp, j)=>{ ghosts.setColor(j, 0x0A9AA2); ghosts.pose(j, kp); });
+      setLine(0, w.path, 0x0A9AA2, true);
+      histPts.geometry.setFromPoints(w.hist.map(p=>P(p[0], p[1], .03))); histPts.visible = true;
+      goal.position.copy(P(w.goal[0], w.goal[1], .006)); goal.visible = true;
+      $('trv-hud').textContent = `${st.target} · anchor ${w.t >= 0 ? '+' : ''}${w.t.toFixed(1)} s from the branch`;
+      stats([['future', st.target === 'walk' ? 'walk (empty scene)' : st.target], ['boxes in the map', w.boxes.length], ['anchor', `${w.t >= 0 ? '+' : ''}${w.t.toFixed(1)} s`],
+             ['shown', '5 of 25 future frames']]);
+    } else if(st.mode === 1){
+      const L = data.loss, i = nearestT(st.t);
+      const w = windowsOf('duck').find(x=>x.k === L.k) || curWin();
+      setBoxes(L.boxes, false); drawMap(w.map); now.pose(0, L.now);
+      if(st.showx){ L.x_t[i].forEach((kp, j)=>{ ghosts.setColor(j, 0x8C949F); ghosts.pose(j, kp); }); setLine(0, L.x_path[i], 0x8C949F, true); }
+      if(st.showy){ L.y_hat[i].forEach((kp, j)=>{ ghosts.setColor(8 + j, 0x0A9AA2); ghosts.pose(8 + j, kp); }); setLine(1, L.y_path[i], 0x0A9AA2, true); }
+      setLine(2, L.gt_path, 0xffffff, true);
+      $('trv-hud').textContent = `flow time t = ${L.t[i].toFixed(2)} · loss ${L.huber[i].toFixed(3)}`;
+      stats([['window', 'duck, 0.2 s before the branch'], ['flow time t', L.t[i].toFixed(2)], ['Huber loss', L.huber[i].toFixed(3)], ['white line', 'true pelvis path']]);
+      curve();
+    } else {
+      const S = data.swap[st.arm], L = data.loss;
+      const w = windowsOf('duck').find(x=>x.k === L.k) || curWin();
+      setBoxes(L.boxes, st.arm === 'empty'); drawMap(st.arm === 'empty' ? btoa(String.fromCharCode(...new Uint8Array(3 * 31 * 61).map((v, i)=>i >= 2 * 31 * 61 ? 255 : 0))) : w.map);
+      now.pose(0, L.now);
+      S.fut.forEach((f, j)=>{ ghosts.setColor(j, st.arm === 'scene' ? 0x0A9AA2 : 0x8C949F); ghosts.pose(j, f[f.length - 1]); });
+      S.path.forEach((p, j)=>{ if(j + 3 < lines.length) setLine(3 + j, p, st.arm === 'scene' ? 0x0A9AA2 : 0x8C949F, true); });
+      const m = S.minz.reduce((a, b)=>a + b, 0) / S.minz.length;
+      $('trv-hud').textContent = `${st.arm === 'scene' ? 'beam in the map' : 'empty map'} · 16 samples at +0.5 s`;
+      stats([['map', st.arm === 'scene' ? 'the real scene' : 'empty (boxes hidden)'], ['mean lowest pelvis', `${m.toFixed(2)} m`], ['true duck', `${data.swap.gt_minz.toFixed(2)} m`]]);
+    }
+  }
+  function setMode(m){
+    st.mode = m; [0, 1, 2].forEach(i=>$('trv-m' + i).setAttribute('aria-pressed', String(i === m)));
+    $('trv-browse').hidden = m !== 0; $('trv-noise').hidden = m !== 1; $('trv-swap').hidden = m !== 2; render();
+  }
+  function start(){
+    if(started) return; started = true;
+    fetch('data/training.json').then(r=>r.json()).then(d=>{
+      data = d;
+      W = V3.world(host, V3.P(.8, 0, .65), V3.P(1.0, -4.4, 1.9));
+      now = V3.skeletons(W.scene, d.edges, 1, {color:0xC9CFD6});
+      ghosts = V3.skeletons(W.scene, d.edges, 32, {color:0x8C949F, opacity:.4});
+      for(let i = 0; i < 20; i++){ const l = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:0x0A9AA2})); l.visible = false; W.scene.add(l); lines.push(l); }
+      goal = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .008, 32), new THREE.MeshBasicMaterial({color:0x2E9E5B, transparent:true, opacity:.6})); W.scene.add(goal);
+      histPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({color:0x2a6bdb, size:.06})); W.scene.add(histPts);
+      host.querySelector('.loading').remove();
+      const sel = $('trv-target'); d.names.forEach(n=>{ const o = document.createElement('option'); o.value = n; o.textContent = n === 'walk' ? 'walk (empty scene)' : n.replace('_l', ' left').replace('_r', ' right').replace('side', 'side-step'); sel.appendChild(o); });
+      sel.value = 'duck';
+      const kRange = ()=>{ const n = windowsOf(st.target).length; $('trv-k').max = n - 1; st.k = Math.min(st.k, n - 1); $('trv-k').value = st.k; };
+      sel.addEventListener('change', ()=>{ st.target = sel.value; kRange(); render(); });
+      $('trv-k').addEventListener('input', e=>{ st.k = +e.target.value; render(); });
+      $('trv-t').addEventListener('input', e=>{ st.t = +e.target.value; render(); });
+      $('trv-showx').addEventListener('change', e=>{ st.showx = e.target.checked; render(); });
+      $('trv-showy').addEventListener('change', e=>{ st.showy = e.target.checked; render(); });
+      [0, 1, 2].forEach(i=>$('trv-m' + i).addEventListener('click', ()=>setMode(i)));
+      const arm = a=>{ st.arm = a; $('trv-sc').setAttribute('aria-pressed', String(a === 'scene')); $('trv-em').setAttribute('aria-pressed', String(a === 'empty')); render(); };
+      $('trv-sc').addEventListener('click', ()=>arm('scene')); $('trv-em').addEventListener('click', ()=>arm('empty'));
+      const ws = windowsOf('duck'); st.k = Math.max(0, ws.findIndex(x=>x.k === d.loss.k)); kRange();
+      render();
+      runner = V3.loop(W, ()=>{}); runner.start();
+    }).catch(()=>{ host.querySelector('.loading').textContent = 'Could not load data/training.json'; });
+  }
+  slide.addEventListener('slide-visible', ()=>{ start(); if(runner) runner.start(); });
+  slide.addEventListener('slide-hidden', ()=>{ if(runner) runner.stop(); });
+  if(slide.classList.contains('on') && window.TF && !window.TF.reading) start();
+})();
 </script>
 <script type="text/plain" id="walk-vtt">
 WEBVTT
@@ -1503,6 +1894,91 @@ Two flows, one loop, and a judge that no generator built. Thank you.
 
 </script>
 <script>(function(){const v=document.getElementById("walk");if(!v)return;const t=document.getElementById("walk-vtt").textContent;const u=URL.createObjectURL(new Blob([t],{type:"text/vtt"}));const tr=document.createElement("track");tr.kind="captions";tr.label="English";tr.srclang="en";tr.src=u;tr.default=true;v.appendChild(tr);})();</script>
+<script type="text/plain" id="walk2-vtt">
+WEBVTT
+
+1
+00:00:00.450 --> 00:00:04.025
+How does the planner learn from the pairs that SceneFlow makes?
+
+2
+00:00:05.175 --> 00:00:10.800
+Every pair is cut into training windows, one every tenth of a second around the decision.
+
+3
+00:00:11.120 --> 00:00:19.845
+Each window gives the network 4 frames of history, a goal one second ahead, and the nearby boxes, drawn as a 3-layer elevation map.
+
+4
+00:00:20.165 --> 00:00:27.140
+Its job is to predict the next half second of whole-body motion: 25 frames of a 65-number state.
+
+5
+00:00:28.290 --> 00:00:40.290
+The windows come in groups. One shared past branches into 9 futures: a walk with an empty scene, and a duck, a crouch, side-steps, veers and a stop, each with the scene that makes it necessary.
+
+6
+00:00:40.610 --> 00:00:46.535
+With the same history, only the map tells these futures apart, so the network has to learn to read it.
+
+7
+00:00:47.685 --> 00:00:55.535
+The network is a transformer over 29 frame tokens: four clean history frames and 25 noisy future frames.
+
+8
+00:00:55.855 --> 00:01:06.405
+In every block the future tokens look up the map through cross-attention, and a conditioning vector built from the history, the goal and the pooled map sets the scale and shift of each layer.
+
+9
+00:01:06.725 --> 00:01:09.525
+It has 9.4 million parameters.
+
+10
+00:01:10.675 --> 00:01:20.575
+Training is flow matching. We blend the true future with Gaussian noise at a random flow time, and ask the network for the velocity that points from the data to the noise.
+
+11
+00:01:20.895 --> 00:01:27.220
+The bottom row is the trained teacher's one-step estimate: from heavy noise it already recovers the duck.
+
+12
+00:01:27.540 --> 00:01:34.940
+The loss is a Huber loss on that velocity. There is no collision term, so scene awareness has to come from the paired data.
+
+13
+00:01:36.090 --> 00:01:43.290
+Teacher C sees 83,000 windows, with the SceneFlow necessity windows filling about half of every batch.
+
+14
+00:01:43.610 --> 00:01:50.310
+30,000 steps take 21 minutes on one GPU, and all three training seeds converge the same way.
+
+15
+00:01:51.460 --> 00:01:56.835
+Does it really use the map? Keep the past, the goal and the noise fixed, and hide only the beam.
+
+16
+00:01:57.155 --> 00:02:04.755
+With the beam in the map, the 16 samples crouch to about 63 cm. With an empty map, only to 74.
+
+17
+00:02:05.075 --> 00:02:10.575
+The network reads the scene, but only partly, so at run time we add clearance guidance.
+
+18
+00:02:11.725 --> 00:02:21.800
+On the robot, the same network samples 16 futures in ten steps, guidance pushes them clear of the obstacles, and the planner picks the one that makes the most progress.
+
+19
+00:02:22.120 --> 00:02:27.245
+SONIC executes it, and the planner replans every 160 ms.
+
+20
+00:02:28.395 --> 00:02:33.670
+That is how pairs generated from motion alone become a planner that ducks in physics.
+
+</script>
+<script>(function(){const v=document.getElementById("walk2");if(!v)return;const t=document.getElementById("walk2-vtt").textContent;const u=URL.createObjectURL(new Blob([t],{type:"text/vtt"}));const tr=document.createElement("track");tr.kind="captions";tr.label="English";tr.srclang="en";tr.src=u;tr.default=true;v.appendChild(tr);})();</script>
 
 </body>
 </html>
