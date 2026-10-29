@@ -1,6 +1,6 @@
 # SceneFlow Studio
 
-A static, interactive explanation of motion-conditioned scene generation. The input motion and the same motion in a generated scene play in synchronized 3D views. Five presets introduce the interaction; **All motions** exposes every published recording.
+A static, interactive explanation of motion-conditioned scene generation. The animated atlas opens the page with six featured pairs, a motion → SceneFlow → motion + scene explanation, and previews visible before scrolling on desktop and mobile. Filters and search cover all 83 atlas pairs; **Show more pairs** reveals further examples. The synchronized 3D comparison follows below, with five presets and **All motions** exposing every published generation run.
 
 - **View pair:** play, pause or scrub both views together.
 - **Try another scene:** cycle through passing candidates for the same motion.
@@ -20,7 +20,7 @@ Each replay shows the first passing draw, with a 4 cm input clearance requiremen
 
 Videos in `atlas/clips/` are byte-identical to the original packet. Posters are extracted from those videos. `atlas/provenance.json` records allowed sources and video hashes. `atlas/story/` bundles the existing published Kimodo films from `two-flows/media/` so the studio also works as a standalone build. Regenerate the package with `python3 tools/pack_studio_atlas.py --source /path/to/presentation-20261028-atlas --out studio/atlas`; this runs only packaging and thumbnail extraction, not model generation.
 
-The gallery initially renders 12 cards and loads videos only for visible previews, with at most four playing. The dialog loads 3D data on demand, cancels stale requests and disposes its WebGL resources on close. Hidden/offscreen animations pause. Reduced-motion preferences show still previews and start all replays paused. The atlas includes a global preview pause, keyboard-accessible dialog, replay timeline, camera controls, recovery buttons and shareable `?atlas=kv-002#atlas` links. Atlas links can coexist with the original `?run=` selection.
+The gallery initially renders six cards and loads videos only for visible previews, with at most four playing. The dialog loads 3D data on demand, cancels stale requests and disposes its WebGL resources on close. Hidden/offscreen animations pause. Reduced-motion preferences show still previews and start all replays paused. The atlas includes a global preview pause, keyboard-accessible dialog, replay timeline, camera controls, recovery buttons and shareable `?atlas=kv-002#atlas` links. Atlas links can coexist with the original `?run=` selection.
 
 The opening candidate has the fewest obstacles among passing scenes, with ties broken by total obstacle volume. All candidate geometry, verdicts and counts come from the existing recordings. A passing geometry check does not establish physical execution or prove the motion is the only possible solution.
 
