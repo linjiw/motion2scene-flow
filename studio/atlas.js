@@ -3,7 +3,7 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 const dialog = $('atlas-dialog'), grid = $('atlas-grid'), film = $('atlas-film');
 const kinds = { posture: 'Posture', path: 'Path', body: 'Body width', narrow: 'Body width' };
 const featured = ['kv-002', 'kc-166', 'sc-188', 'ksk-200', 'kv-008', 'kp2-180', 'kv-004', 'kc-170', 'sc-191', 'kv-006', 'kp2-176', 'ksk-201'];
-let items = [], filtered = [], limit = 12, kind = 'all', previewsPaused = reduce.matches;
+let items = [], filtered = [], limit = 6, kind = 'all', previewsPaused = reduce.matches;
 let current = null, view = 'film', viewer = null, revision = 0, request = null;
 let priorFocus = null;
 const visible = new Set();
@@ -53,7 +53,7 @@ function makeCard(item) {
 }
 function render(reset = true) {
   if (reset) {
-    limit = 12;
+    limit = 6;
     const query = $('atlas-search').value.trim().toLowerCase(), source = $('atlas-source').value;
     filtered = items.filter(e => (kind === 'all' || (kind === 'body' ? ['body', 'narrow'].includes(e.kind) : kind === e.kind))
       && (source === 'all' || (source === 'unseen' ? e.unseen : source === 'sonic' ? e.src === 'sc' : e.src !== 'sc'))
