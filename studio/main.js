@@ -120,6 +120,7 @@ async function loadModel() {
 }
 class Robot {
   constructor(model, lod, material, castShadow) {
+    this.nextQuaternion = new THREE.Quaternion();
     this.root = new THREE.Group();
     this.bodies = model.manifest.bodies.map(() => { const b = new THREE.Group(); this.root.add(b); return b; });
     for (const g of model.manifest.geoms) {
@@ -132,10 +133,18 @@ class Robot {
     world.add(this.root);
   }
   setPose(P, Q, f) { // P: Float32Array (F*30*3), Q: (F*30*4) wxyz; f: frame
-    const n = this.bodies.length, o3 = f * n * 3, o4 = f * n * 4;
+    const n = this.bodies.length, lastFrame = P.length / (n * 3) - 1;
+    f = clamp(f, 0, lastFrame);
+    const f0 = Math.floor(f), f1 = Math.min(f0 + 1, lastFrame), u = f - f0;
+    const o3 = f0 * n * 3, o4 = f0 * n * 4, next3 = f1 * n * 3, next4 = f1 * n * 4;
     for (let i = 0; i < n; i++) {
-      this.bodies[i].position.set(P[o3 + 3 * i], P[o3 + 3 * i + 1], P[o3 + 3 * i + 2]);
+      this.bodies[i].position.set(
+        THREE.MathUtils.lerp(P[o3 + 3 * i], P[next3 + 3 * i], u),
+        THREE.MathUtils.lerp(P[o3 + 3 * i + 1], P[next3 + 3 * i + 1], u),
+        THREE.MathUtils.lerp(P[o3 + 3 * i + 2], P[next3 + 3 * i + 2], u));
       this.bodies[i].quaternion.set(Q[o4 + 4 * i + 1], Q[o4 + 4 * i + 2], Q[o4 + 4 * i + 3], Q[o4 + 4 * i]);
+      this.nextQuaternion.set(Q[next4 + 4 * i + 1], Q[next4 + 4 * i + 2], Q[next4 + 4 * i + 3], Q[next4 + 4 * i]);
+      this.bodies[i].quaternion.slerp(this.nextQuaternion, u);
     }
   }
 }
@@ -560,15 +569,22 @@ function setSnap(u) {
   d.boxes.forEach((b, i) => { const r = d.raw[i] || b, m = D.meshes[i]; m.visible = true; placeBox(m, lerpBox(r, b, ease(u))); });
 }
 let last = performance.now();
+let atlasModalOpen = false, shownStage = '';
+document.addEventListener('sceneflow:atlas', event => { atlasModalOpen = event.detail.open; });
+const stageIndicators = [...document.querySelectorAll('.generation-steps [data-phase]')];
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min((now - last) / 1000, 0.1) * ($('t-slow').checked ? 0.5 : 1); last = now;
-  if (!viewerVisible || document.hidden) return;
+  if (!viewerVisible || document.hidden || atlasModalOpen) return;
+  if (shownStage !== S.mode) {
+    shownStage = S.mode;
+    stageIndicators.forEach(indicator => { indicator.dataset.active = String(indicator.dataset.phase === S.mode); });
+  }
   if (!S.paused) S.t += dt;
   const r = S.result;
   if (S.hero && S.mode === 'preview' && S.pv) {
     const F = S.pv.F, f = (S.t * 25) % F;
-    S.hero.setPose(S.pv.pos, S.pv.quat, Math.floor(f));
+    S.hero.setPose(S.pv.pos, S.pv.quat, f);
     $('scrub').value = String(Math.round(1000 * f / (F - 1)));
   } else if (S.hero && r) {
     const F = r.frames;
@@ -592,9 +608,9 @@ function tick(now) {
     } else if (S.mode === 'play') {
       poseDraws(40, 'all'); setSnap(1); styleDraws('play', 1);
       const total = (F - 1) / r.fps + 1.0, tt = S.t % total, f = Math.min(tt * r.fps, F - 1);
-      S.hero.setPose(r.tp.pos, r.tp.quat, Math.floor(f));
+      S.hero.setPose(r.tp.pos, r.tp.quat, f);
       const d = r.draws[S.sel], hit = d.alt_hit, frozen = hit != null && f >= hit;
-      S.alt.setPose(r.ap.pos, r.ap.quat, Math.floor(frozen ? hit : f));
+      S.alt.setPose(r.ap.pos, r.ap.quat, frozen ? hit : f);
       altMaterial.color.setHex(frozen ? COL.bad : COL.alt); altMaterial.opacity = frozen ? 0.6 : 0.3;
       setPhase(d.necessary ? (frozen ? ($('t-alt').checked ? 'The alternative hits an obstacle. The input motion gets through.' : 'The input motion clears the generated scene.') : 'Same motion in both views. The generated scene adds context.')
         : `Scene ${S.sel + 1} fails the check: ${d.reason || 'not necessary'}`);
