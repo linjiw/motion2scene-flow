@@ -10,32 +10,43 @@ const $ = (id) => document.getElementById(id);
 // examples: [{file, label}] recorded runs shown when the generator is offline}. The local studio leaves it empty.
 const CFG = Object.assign({ api: '', assets: null, staticLibrary: false, public: false, examples: [] }, window.SCENEFLOW || {});
 const STATIC = CFG.public && !CFG.api;  // the page alone (GitHub Pages): recorded runs only, no generator calls
-const COL = { tgt: 0x5eead4, alt: 0xa3a3a3, bad: 0xff6467, good: 0x4ade80, box: 0xf59e0b, boxLow: 0xc2770a, ghost: 0x9aa3ad, ring: 0xededed };
+const COL = { tgt: 0x168b80, alt: 0x7d8792, bad: 0xd34f56, good: 0x26836a, box: 0xe7aa55, boxLow: 0xc88a37, ghost: 0x9aaeb1, ring: 0x9cc7bf };
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KINDS = ['ground', 'low', 'mid', 'overhead'];
 const DATUM = 0.081;
 const GEN_S = 4.6, SNAP_S = 0.9, CHECK_S = 1.4;
 
 // ---------------------------------------------------------------------------------------------- scene
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+catch (error) {
+  $('load-txt').textContent = 'This 3D demo needs WebGL. Try a browser with graphics acceleration enabled.';
+  $('retry-load').hidden = false;
+  $('retry-load').onclick = () => location.reload();
+  throw error;
+}
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize($('stage').clientWidth, $('stage').clientHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 $('stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0a);
-scene.fog = new THREE.Fog(0x0a0a0a, 14, 40);
+scene.background = new THREE.Color(0xf1f5f5);
+scene.fog = new THREE.Fog(0xf1f5f5, 14, 40);
 const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.05, 200);
 camera.position.set(-2.2, 2.6, 4.0);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+renderer.domElement.style.touchAction = 'pan-y';
+renderer.domElement.tabIndex = 0;
 controls.dampingFactor = 0.08;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.target.set(0.8, 0.7, 0);
-scene.add(new THREE.HemisphereLight(0xeef2f8, 0x1a1a1a, 0.9));
+scene.add(new THREE.HemisphereLight(0xeef2f8, 0xcedbd5, 0.9));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.position.set(-3, 7, 5);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 });
@@ -54,26 +65,41 @@ const W2S = (x, y, z) => new THREE.Vector3(x, z, -y); // world (z-up) -> scene (
   const size = 1024, c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
-  g.fillStyle = '#141414'; g.fillRect(0, 0, size, size);
-  g.strokeStyle = 'rgba(255,255,255,0.05)'; g.lineWidth = 2;
+  g.fillStyle = '#edf2f2'; g.fillRect(0, 0, size, size);
+  g.strokeStyle = 'rgba(75,110,105,0.07)'; g.lineWidth = 2;
   for (let i = 0; i <= 8; i++) { const p = (i * size) / 8; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, size); g.moveTo(0, p); g.lineTo(size, p); g.stroke(); }
-  g.strokeStyle = 'rgba(255,255,255,0.1)'; g.lineWidth = 3; g.strokeRect(0, 0, size, size);
+  g.strokeStyle = 'rgba(75,110,105,0.1)'; g.lineWidth = 3; g.strokeRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(30, 30); tex.anisotropy = 8; tex.colorSpace = THREE.SRGBColorSpace;
   const f = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 }));
   f.position.set(0.5, 0.5, 0); f.receiveShadow = true; world.add(f);
 })();
 
-// Phones (style.css, max-width 760px): the list covers the top 12 px + 30vh, the draws panel and transport bar the bottom
-// 162 px + 24vh. Shift the image so its centre is the middle of the open strip between them.
+// One renderer, two synchronized views. Size the camera to its panel, not the browser window.
+let viewWidth = 1, viewHeight = 1, stacked = false;
 function fitView() {
-  camera.aspect = innerWidth / innerHeight;
-  if (innerWidth <= 760) camera.setViewOffset(innerWidth, innerHeight, 0, Math.round((150 - 0.06 * innerHeight) / 2), innerWidth, innerHeight);
-  else camera.clearViewOffset();
-  camera.updateProjectionMatrix();
+  viewWidth = $('stage').clientWidth; viewHeight = $('stage').clientHeight;
+  stacked = matchMedia('(max-width: 700px)').matches;
+  renderer.setSize(viewWidth, viewHeight);
+  camera.aspect = stacked ? viewWidth / (viewHeight / 2) : (viewWidth / 2) / viewHeight;
+  camera.clearViewOffset(); camera.updateProjectionMatrix();
+  renderer.domElement.setAttribute('aria-label', stacked
+    ? 'Input motion above; the same motion with a generated scene below. Drag or use arrow keys to rotate both views; plus and minus zoom, Home resets.'
+    : 'Input motion left; the same motion with a generated scene right. Drag or use arrow keys to rotate both views; plus and minus zoom, Home resets.');
+  $('stage').setAttribute('aria-label', renderer.domElement.getAttribute('aria-label'));
 }
 fitView();
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); fitView(); });
+new ResizeObserver(fitView).observe($('stage'));
+controls.enableZoom = false; // Let the page scroll; zoom intentionally with Ctrl/Command + scroll.
+renderer.domElement.addEventListener('wheel', (event) => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  event.preventDefault();
+  const offset = camera.position.clone().sub(controls.target);
+  offset.multiplyScalar(event.deltaY > 0 ? 1.08 : 0.92);
+  offset.clampLength(1.5, 25); camera.position.copy(controls.target).add(offset);
+}, { passive: false });
+let viewerVisible = true;
+new IntersectionObserver(([entry]) => { viewerVisible = entry.isIntersecting; }).observe($('viewport'));
 
 // ---------------------------------------------------------------------------------------------- robot
 async function loadModel() {
@@ -162,11 +188,11 @@ function h(tag, cls, ...kids) {
 }
 
 // ---------------------------------------------------------------------------------------------- state
-const S = { model: null, hero: null, alt: null, motion: null, P: null, result: null, sel: 0, mode: 'idle', t: 0, paused: false,
+const S = { model: null, hero: null, alt: null, motion: null, P: null, result: null, sel: 0, mode: 'idle', t: 0, paused: reducedMotion,
   draws: [], boxGroup: new THREE.Group(), trail: null, altTrail: null, ring: null, prof: null };
 world.add(S.boxGroup);
 
-function setPhase(s) { $('phase').textContent = s; }
+function setPhase(s) { if ($('phase').textContent !== s) $('phase').textContent = s; }
 function opt() {
   const o = {};
   document.querySelectorAll('.seg').forEach((seg) => {
@@ -241,11 +267,12 @@ async function pick(id) {
 
 // ---------------------------------------------------------------------------------------------- motion preview
 function clearResult() {
-  S.result = null; S.draws = [];
-  S.boxGroup.clear();
+  S.result = null;
+  for (const draw of S.draws) { draw.mat.dispose(); draw.emat.dispose(); }
+  S.boxGroup.clear(); S.draws = [];
   $('right').hidden = true; $('legend').hidden = true;
-  $('b-gen').disabled = $('b-play').disabled = true;
-  for (const k of ['trail', 'altTrail']) if (S[k]) { world.remove(S[k]); S[k] = null; }
+  $('b-gen').disabled = $('b-play').disabled = $('b-pause').disabled = true;
+  for (const k of ['trail', 'altTrail']) if (S[k]) { world.remove(S[k]); S[k].geometry.dispose(); S[k].material.dispose(); S[k] = null; }
   S.alt.root.visible = false;
 }
 function line(points, color, dashed) {
@@ -261,12 +288,14 @@ function frameCamera(pts, boxes) {
   const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2, ext = Math.max(mxx - mnx, mxy - mny, 1.5);
   const p0 = pts[0], p1 = pts[pts.length - 1];
   let dx = p1[0] - p0[0], dy = p1[1] - p0[1]; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
-  const d = (ext * 0.95 + 2.4) * Math.min(2.6, Math.max(1, 1.25 / camera.aspect));  // portrait screens see a narrow slice: pull back
+  const d = (ext * 0.72 + 1.7) * Math.min(2.6, Math.max(1, 1.25 / camera.aspect));  // portrait screens see a narrow slice: pull back
   controls.target.copy(W2S(cx, cy, 0.65));
   camera.position.copy(W2S(cx - dx * d * 0.85 + dy * d * 0.7, cy - dy * d * 0.85 - dx * d * 0.7, d * 0.55));
 }
 function showMotion(m) {
   S.motion = m;
+  document.querySelector('.recording-pill').textContent = m.recorded ? 'Recorded model output' : 'Live motion preview';
+  $('motion-title').textContent = m.label;
   $('sel-opt').hidden = true;
   S.hero.root.visible = true;
   S.pv = { pos: f32(m.pos), quat: f32(m.quat), F: m.frames };
@@ -295,7 +324,7 @@ function showMotion(m) {
   } else setP(m.points[0].P);
   frameCamera(pts);
   S.mode = 'preview'; S.t = 0; S.paused = false;
-  setPhase('Preview · choose the decision point, then hallucinate');
+  setPhase('Preview the motion, choose a decision point, then generate scenes.');
 }
 function setP(P) {
   S.P = P;
@@ -337,9 +366,11 @@ $('go').addEventListener('click', async () => {
 });
 
 function onResult(r) {
+  document.querySelector('.recording-pill').textContent = S.motion.recorded ? 'Recorded model output' : 'Live model output';
   S.result = r;
   r.tp = { pos: f32(r.target.pos), quat: f32(r.target.quat) };
   r.ap = { pos: f32(r.alt.pos), quat: f32(r.alt.quat) };
+  for (const draw of S.draws) { draw.mat.dispose(); draw.emat.dispose(); }
   S.boxGroup.clear();
   S.draws = r.draws.map((d) => {
     const xs = f32(d.xs);
@@ -354,11 +385,15 @@ function onResult(r) {
     }
     return { d, xs, g, mat, emat, meshes };
   });
-  S.sel = Math.max(0, r.draws.findIndex((d) => d.necessary));
+  // Start with the simplest passing scene; preserve every candidate for inspection.
+  const volume = d => d.boxes.reduce((sum, b) => sum + 4 * b.hx * b.hy * (b.zt - b.zb), 0);
+  const accepted = r.draws.map((d, i) => ({ d, i })).filter(({ d }) => d.necessary);
+  accepted.sort((a, b) => a.d.boxes.length - b.d.boxes.length || volume(a.d) - volume(b.d));
+  S.sel = accepted[0]?.i ?? 0;
   // trails and profiles in the result's canonical frame
   const F = r.frames, pts = [], apts = [];
   for (let f = 0; f < F; f++) { pts.push([r.tp.pos[f * 90], r.tp.pos[f * 90 + 1]]); apts.push([r.ap.pos[f * 90], r.ap.pos[f * 90 + 1]]); }
-  for (const k of ['trail', 'altTrail']) if (S[k]) world.remove(S[k]);
+  for (const k of ['trail', 'altTrail']) if (S[k]) { world.remove(S[k]); S[k].geometry.dispose(); S[k].material.dispose(); }
   S.trail = line(pts, COL.tgt, false);
   S.altTrail = line(apts, COL.alt, true);
   const df = Math.round(r.decision_frame);
@@ -372,13 +407,50 @@ function onResult(r) {
   if (!S.alt) return;
   S.alt.root.visible = true;
   $('right').hidden = false; $('legend').hidden = false;
-  $('b-gen').disabled = $('b-play').disabled = false;
+  $('b-gen').disabled = $('b-play').disabled = $('b-pause').disabled = false;
   renderTiles(); renderDetail();
   frameCamera(pts.concat(apts.slice(0, Math.round(r.decision_frame) + 20)), r.draws[S.sel].boxes);
-  startGen();
+  startPlay();
+  if (reducedMotion) { S.paused = true; S.t = (r.decision_frame + 20) / r.fps; }
+  updatePlaybackControls();
 }
-function startGen() { S.mode = 'gen'; S.t = 0; S.paused = false; }
-function startPlay() { S.mode = 'play'; S.t = 0; S.paused = false; }
+function updatePlaybackControls() {
+  const generating = ['gen', 'snap', 'check'].includes(S.mode);
+  $('b-play').setAttribute('aria-pressed', String(!generating));
+  $('b-gen').setAttribute('aria-pressed', String(generating));
+  $('b-pause').textContent = S.paused ? '▶' : 'Ⅱ';
+  $('b-pause').setAttribute('aria-label', S.paused ? 'Resume playback' : 'Pause playback');
+  $('output-subtitle').textContent = generating ? 'Replaying how the scene was generated' : 'The same movement, with context';
+}
+function startGen() { S.mode = 'gen'; S.t = 0; S.paused = false; updatePlaybackControls(); }
+function startPlay() { S.mode = 'play'; S.t = 0; S.paused = false; updatePlaybackControls(); }
+$('b-pause').addEventListener('click', () => { S.paused = !S.paused; updatePlaybackControls(); });
+renderer.domElement.addEventListener('keydown', (event) => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', 'Home'].includes(event.key)) return;
+  event.preventDefault();
+  if (event.key === 'Home') { $('reset-view').click(); return; }
+  const spherical = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  if (event.key === 'ArrowLeft') spherical.theta -= 0.12;
+  if (event.key === 'ArrowRight') spherical.theta += 0.12;
+  if (event.key === 'ArrowUp') spherical.phi -= 0.08;
+  if (event.key === 'ArrowDown') spherical.phi += 0.08;
+  if (event.key === '+' || event.key === '=') spherical.radius *= 0.92;
+  if (event.key === '-') spherical.radius *= 1.08;
+  spherical.phi = clamp(spherical.phi, 0.1, Math.PI * 0.49);
+  spherical.radius = clamp(spherical.radius, 1.5, 25);
+  camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));
+});
+$('reset-view').addEventListener('click', () => {
+  if (S.prof && S.result) frameCamera(S.prof.x.map((x, i) => [x, S.result.tp.pos[i * 90 + 1]]), S.result.draws[S.sel].boxes);
+  else if (S.pvPts) frameCamera(S.pvPts);
+});
+$('next-scene').addEventListener('click', () => {
+  if (!S.result) return;
+  const accepted = S.result.draws.map((d, i) => d.necessary ? i : -1).filter(i => i >= 0);
+  S.sel = accepted[(accepted.indexOf(S.sel) + 1) % accepted.length];
+  renderDetail(); markTiles(); $('reset-view').click(); startPlay();
+});
 $('b-gen').addEventListener('click', startGen);
 $('b-play').addEventListener('click', startPlay);
 $('scrub').addEventListener('input', (e) => {
@@ -387,22 +459,24 @@ $('scrub').addEventListener('input', (e) => {
   if (S.mode === 'gen' || S.mode === 'snap' || S.mode === 'check') { S.mode = 'gen'; S.t = u * GEN_S; }
   else if (S.mode === 'play' && S.result) S.t = u * (S.result.frames - 1) / S.result.fps;
   else if (S.mode === 'preview') S.t = u * (S.pv.F - 1) / 25;
+  updatePlaybackControls();
 });
 
 // ---------------------------------------------------------------------------------------------- results panel
 function renderTiles() {
   const r = S.result, el = $('tiles');
-  $('sum').replaceChildren(h('b', '', r.stats.pass), ` of ${r.stats.n} draws pass the exact check`,
-    h('div', 'dim small', `sampling ${r.stats.gen_s} s · check ${r.stats.check_s} s on the CPU · ${r.opt.model}, guidance ${r.opt.guidance}`));
+  $('sum').replaceChildren(h('b', '', r.stats.pass), ` passing scenes from ${r.stats.n} candidates.`);
+  $('next-scene').disabled = r.stats.pass < 2;
+  $('run-details').textContent = `Recorded with SceneFlow ${r.opt.model} · ${r.stats.steps} denoising steps · ${Math.round(r.opt.margin * 100)} cm requested margin · seed ${r.opt.seed}. Sampling: ${r.stats.gen_s} s; checking: ${r.stats.check_s} s on the lab CPU.`;
   el.innerHTML = '';
   r.draws.forEach((d, j) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tile ' + (d.necessary ? 'pass' : 'fail');
-    b.setAttribute('aria-label', `Draw ${j}: ${d.necessary ? 'passes' : 'fails'}`);
+    b.setAttribute('aria-label', `Scene ${j + 1}: ${d.necessary ? 'passes' : 'fails'}`);
     const cv = h('canvas'); cv.width = 160; cv.height = 120;
-    b.append(cv, h('span', 'j', j), h('span', 'v', d.necessary ? '✓' : '✕'));
+    b.append(cv, h('span', 'j', j + 1), h('span', 'v', d.necessary ? '✓' : '✕'));
     drawTile(cv, d);
-    b.addEventListener('click', () => { S.sel = j; renderDetail(); markTiles(); if (S.mode === 'preview') startPlay(); });
+    b.addEventListener('click', () => { S.sel = j; renderDetail(); markTiles(); $('reset-view').click(); startPlay(); });
     el.appendChild(b);
   });
   markTiles();
@@ -412,20 +486,23 @@ function drawTile(cv, d) {
   const g = cv.getContext('2d'), W = cv.width, H = cv.height, P = S.prof;
   const x0 = Math.min(...P.x) - 0.6, x1 = Math.max(...P.x) + 0.6, Z = 2.1;
   const X = (x) => 6 + (x - x0) / (x1 - x0) * (W - 12), Y = (z) => H - 8 - z / Z * (H - 16);
-  g.fillStyle = '#121212'; g.fillRect(0, 0, W, H);
-  g.strokeStyle = '#2e2e2e'; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
+  g.fillStyle = '#f0f5f4'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#d0ded9'; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
   for (const b of d.boxes) {
     g.fillStyle = b.kind === 'ground' || b.kind === 'low' ? 'rgba(194,119,10,0.85)' : 'rgba(245,158,11,0.9)';
     g.fillRect(X(b.cx - b.hx), Y(Math.min(b.zt, Z)), Math.max(X(b.cx + b.hx) - X(b.cx - b.hx), 1.5), Y(b.zb) - Y(Math.min(b.zt, Z)));
   }
   const prof = (xs, ts, upto, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); for (let f = 0; f < upto; f++) { const p = [X(xs[f]), Y(ts[f])]; f ? g.lineTo(...p) : g.moveTo(...p); } g.stroke(); };
   prof(P.ax, P.atop, d.alt_hit != null ? Math.ceil(d.alt_hit) + 1 : P.ax.length, 'rgba(163,163,163,0.8)', 1.2);
-  prof(P.x, P.top, P.x.length, '#5eead4', 2);
+  prof(P.x, P.top, P.x.length, '#168b80', 2);
 }
 function renderDetail() {
   const d = S.result.draws[S.sel], el = $('detail');
+  $('pair-verdict').textContent = d.necessary ? `✓ Scene ${S.sel + 1} passes the geometry check` : `× Scene ${S.sel + 1} does not pass` ;
+  document.querySelector('.selection-note').classList.toggle('failed', !d.necessary);
+  $('pair-clearance').textContent = d.target_clear == null ? 'No clearance available' : `Motion clearance: ${(d.target_clear * 100).toFixed(1)} cm · requested: ${Math.round(S.result.opt.margin * 100)} cm`;
   const cm = (m) => (m * 100).toFixed(1) + ' cm';
-  const why = d.necessary ? 'Passes the exact check: the motion is necessary here.' : `Fails: ${d.reason || 'not necessary'}.`;
+  const why = d.necessary ? 'Passes: motion clears; tested alternatives blocked.' : `Fails: ${d.reason || 'not necessary'}.`;
   const kv = h('dl', 'kv');
   const row = (k, v) => kv.append(h('dt', '', k), h('dd', '', v));
   row('motion clears', d.target_clear != null ? cm(d.target_clear) : '–');
@@ -438,7 +515,7 @@ function renderDetail() {
   const boxes = h('div', 'boxes');
   d.boxes.forEach((b) => boxes.append(h('div', '', `${String(b.kind).padEnd(8)} ${(2 * b.hx).toFixed(2)} × ${(2 * b.hy).toFixed(2)} m, ${b.zb.toFixed(2)}–${b.zt.toFixed(2)} m`)));
   if (!d.boxes.length) boxes.append('no boxes');
-  el.replaceChildren(h('div', `verdict ${d.necessary ? 'ok' : 'no'}`, `Draw ${S.sel} · ${why}`), kv, boxes);
+  el.replaceChildren(h('div', `verdict ${d.necessary ? 'ok' : 'no'}`, `Scene ${S.sel + 1} · ${why}`), kv, boxes);
 }
 $('export').addEventListener('click', () => {
   const r = S.result; if (!r) return;
@@ -448,6 +525,7 @@ $('export').addEventListener('click', () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }));
   a.download = `sceneflow_${r.motion.replace(/[^\w.-]+/g, '_')}_draw${S.sel}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
 // ---------------------------------------------------------------------------------------------- animation
@@ -485,6 +563,7 @@ let last = performance.now();
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min((now - last) / 1000, 0.1) * ($('t-slow').checked ? 0.5 : 1); last = now;
+  if (!viewerVisible || document.hidden) return;
   if (!S.paused) S.t += dt;
   const r = S.result;
   if (S.hero && S.mode === 'preview' && S.pv) {
@@ -499,17 +578,17 @@ function tick(now) {
       poseDraws(step, 'all'); styleDraws('gen', step / 40);
       S.hero.setPose(r.tp.pos, r.tp.quat, Math.round(r.decision_frame));
       S.alt.setPose(r.ap.pos, r.ap.quat, Math.round(r.decision_frame)); altMaterial.color.setHex(COL.alt); altMaterial.opacity = 0.25;
-      setPhase(`Generating · Euler step ${Math.floor(step)} / 40${step >= 20 ? ' · guidance on' : ''}`);
+      setPhase(`Scene generation · step ${Math.floor(step)} of 40${step >= 20 ? ' · refining clearance' : ' · from noise to obstacles'}`);
       $('scrub').value = String(Math.round(1000 * step / 40));
       if (S.t >= GEN_S && !S.paused) { S.mode = 'snap'; S.t = 0; }
     } else if (S.mode === 'snap') {
       poseDraws(40, 'all'); styleDraws('gen', 1); setSnap(S.t / SNAP_S);
-      setPhase(r.opt.snap ? `Snap · boxes slide toward the body until they keep the ${Math.round(r.opt.margin * 100)} cm margin` : 'Final boxes');
-      if (S.t >= SNAP_S) { S.mode = 'check'; S.t = 0; }
+      setPhase(r.opt.snap ? `Refine the scene · adjust obstacles to keep ${Math.round(r.opt.margin * 100)} cm of clearance` : 'Final boxes');
+      if (S.t >= SNAP_S && !S.paused) { S.mode = 'check'; S.t = 0; }
     } else if (S.mode === 'check') {
       poseDraws(40, 'all'); setSnap(1); styleDraws('check', clamp(S.t / CHECK_S, 0, 1));
-      setPhase(`Exact check · ${r.stats.pass} of ${r.stats.n} draws pass`);
-      if (S.t >= CHECK_S) startPlay();
+      setPhase(`Check the pairs · ${r.stats.pass} of ${r.stats.n} scenes pass`);
+      if (S.t >= CHECK_S && !S.paused) startPlay();
     } else if (S.mode === 'play') {
       poseDraws(40, 'all'); setSnap(1); styleDraws('play', 1);
       const total = (F - 1) / r.fps + 1.0, tt = S.t % total, f = Math.min(tt * r.fps, F - 1);
@@ -517,13 +596,28 @@ function tick(now) {
       const d = r.draws[S.sel], hit = d.alt_hit, frozen = hit != null && f >= hit;
       S.alt.setPose(r.ap.pos, r.ap.quat, Math.floor(frozen ? hit : f));
       altMaterial.color.setHex(frozen ? COL.bad : COL.alt); altMaterial.opacity = frozen ? 0.6 : 0.3;
-      setPhase(d.necessary ? (frozen ? 'The alternative hits a box · the motion gets through' : 'Replay · the motion through the chosen scene')
-        : `Draw ${S.sel} fails the check: ${d.reason || ''}`);
+      setPhase(d.necessary ? (frozen ? ($('t-alt').checked ? 'The alternative hits an obstacle. The input motion gets through.' : 'The input motion clears the generated scene.') : 'Same motion in both views. The generated scene adds context.')
+        : `Scene ${S.sel + 1} fails the check: ${d.reason || 'not necessary'}`);
       $('scrub').value = String(Math.round(1000 * f / (F - 1)));
     }
   }
+  const duration = S.result ? (S.result.frames - 1) / S.result.fps : 0;
+  const time = ['gen', 'snap', 'check'].includes(S.mode) ? S.t : duration ? Math.min(S.t % (duration + 1), duration) : 0;
+  $('play-time').textContent = `${time.toFixed(1)} s`;
   controls.update();
-  renderer.render(scene, camera);
+  const inputRect = stacked ? [0, viewHeight / 2, viewWidth, viewHeight / 2] : [0, 0, viewWidth / 2, viewHeight];
+  const outputRect = stacked ? [0, 0, viewWidth, viewHeight / 2] : [viewWidth / 2, 0, viewWidth / 2, viewHeight];
+  renderer.setScissorTest(true);
+  // Hide only the context for the input view. The robot's pose and camera remain identical.
+  const contextual = [S.boxGroup, S.alt?.root, S.altTrail, S.ring].filter(Boolean);
+  const visibility = contextual.map(object => object.visible);
+  contextual.forEach(object => { object.visible = false; });
+  renderer.setViewport(...inputRect); renderer.setScissor(...inputRect); renderer.render(scene, camera);
+  contextual.forEach((object, i) => { object.visible = visibility[i]; });
+  if (S.altTrail) S.altTrail.visible = $('t-alt').checked;
+  if (S.ring) S.ring.visible = false;
+  renderer.setViewport(...outputRect); renderer.setScissor(...outputRect); renderer.render(scene, camera);
+  renderer.setScissorTest(false);
 }
 
 // ---------------------------------------------------------------------------------------------- health, recorded runs
@@ -545,25 +639,48 @@ async function health() {
     pill.textContent = 'generator offline · recorded runs below still play';
   }
   $('go').disabled = !S.online;
-  $('go').textContent = S.online ? 'Hallucinate scenes' : 'Generator offline';
+  $('go').textContent = S.online ? 'Generate scenes' : 'Generator offline';
 }
+const PRESETS = [
+  { run: 'kd-9-duck', name: 'Duck', icon: '↘' },
+  { run: 'kc-60-side-l', name: 'Sidestep', icon: '↔' },
+  { run: 'kc-12-crouch', name: 'Crouch', icon: '↓' },
+  { run: 'kc-63-veer-l', name: 'Turn', icon: '↰' },
+  { run: 'kc-45-stop', name: 'Stop', icon: '⊣' },
+];
+let recordedRequest = 0;
 async function playRecorded(ex) {
-  document.querySelectorAll('#recorded .item').forEach((x) => x.setAttribute('aria-current', String(x.dataset.run === ex.run)));
-  setPhase('Loading a recorded run…');
-  const j = await (await fetch(`${CFG.assets}/examples/${ex.file}`)).json();
-  showMotion(Object.assign(j.summary, { recorded: true }));
-  onResult(j.result);
-  const o = j.result.opt;
-  $('sel-opt').textContent = `Recorded with ${o.draws} draws · ${o.guidance === 'necessity' ? 'clearance + necessity' : o.guidance} guidance · `
-    + `${Math.round(o.margin * 100)} cm margin · SceneFlow ${o.model} · seed ${o.seed}`;
-  $('sel-opt').hidden = false;
-  if (STATIC && ex.run) history.replaceState(null, '', `?run=${encodeURIComponent(ex.run)}`);  // a link to this run
-  setPhase('Recorded run · replaying');
+  const request = ++recordedRequest;
+  $('load').hidden = false; $('retry-load').hidden = true;
+  $('load-txt').textContent = 'Loading the motion and its generated scenes…';
+  try {
+    const response = await fetch(`${CFG.assets}/examples/${ex.file}`);
+    if (!response.ok) throw new Error('This recording could not be downloaded.');
+    const j = await response.json();
+    if (request !== recordedRequest) return;
+    showMotion(Object.assign(j.summary, { recorded: true }));
+    onResult(j.result);
+    const preset = PRESETS.find(item => item.run === ex.run);
+    $('motion-title').textContent = preset ? `${preset.name} · ${ex.source}` : ex.label;
+    document.querySelectorAll('#recorded .item').forEach(x => x.setAttribute('aria-current', String(x.dataset.run === ex.run)));
+    document.querySelectorAll('.preset').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.run === ex.run)));
+    if (STATIC && ex.run) {
+      const url = new URL(location.href); url.searchParams.set('run', ex.run);
+      history.replaceState(null, '', url);
+    }
+    $('load').hidden = true;
+    setPhase('Same motion in both views. The generated scene adds context.');
+  } catch (error) {
+    if (request !== recordedRequest) return;
+    $('load-txt').textContent = error.message || 'Could not load this recording.';
+    $('retry-load').hidden = false; $('retry-load').onclick = () => playRecorded(ex);
+    setPhase('Recording unavailable. Retry or choose another motion.');
+  }
 }
 
 // ---------------------------------------------------------------------------------------------- boot
-$('about-link').addEventListener('click', (e) => { e.preventDefault(); $('about').hidden = !$('about').hidden; });
-$('about-close').addEventListener('click', () => { $('about').hidden = true; });
+$('more-motions').addEventListener('click', () => { $('motion-library').open = !$('motion-library').open; });
+$('motion-library').addEventListener('toggle', () => { $('more-motions').setAttribute('aria-expanded', String($('motion-library').open)); });
 (async () => {
   try {
     S.model = await loadModel();
@@ -587,10 +704,16 @@ $('about-close').addEventListener('click', () => { $('about').hidden = true; });
     if (CFG.examples.length) {
       $('recorded-wrap').hidden = false;
       $('recorded').innerHTML = '';
+      for (const preset of PRESETS) {
+        const ex = CFG.examples.find(ex => ex.run === preset.run); if (!ex) continue;
+        const button = h('button', 'preset', h('span', 'preset-icon', preset.icon), preset.name);
+        button.type = 'button'; button.dataset.run = preset.run; button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', () => playRecorded(ex)); $('presets').append(button);
+      }
       for (const ex of CFG.examples) {
         const b = document.createElement('button'); b.className = 'item'; b.type = 'button';
         b.innerHTML = '<b></b><span></span>'; b.querySelector('b').textContent = ex.label; b.dataset.run = ex.run || '';
-        b.querySelector('span').textContent = ex.n ? `${ex.pass} of ${ex.n} draws pass · ${ex.source}` : 'recorded run · works offline';
+        b.querySelector('span').textContent = ex.n ? `${ex.pass} passing scenes · ${ex.source}` : 'recorded run · works offline';
         b.addEventListener('click', () => playRecorded(ex)); $('recorded').appendChild(b);
       }
     }
@@ -598,9 +721,9 @@ $('about-close').addEventListener('click', () => { $('about').hidden = true; });
     const qs = new URLSearchParams(location.search), want = !STATIC && qs.get('motion');
     const run = CFG.examples.find((ex) => ex.run && ex.run === qs.get('run'));
     if (want) pick(want);
-    else if (CFG.examples.length) playRecorded(run || CFG.examples[0]);  // open on a recorded run: moving at once, no server cost
+    else if (CFG.examples.length) await playRecorded(run || CFG.examples[0]);  // open on a recorded run: moving at once, no server cost
     health();  // in the background; the status pill updates when it answers (or after 5 s)
     if (CFG.public && !STATIC) setInterval(health, 60000);
-  } catch (err) { $('load-txt').textContent = 'Could not start: ' + err.message; }
+  } catch (err) { $('load').hidden = false; $('load-txt').textContent = 'Could not start: ' + err.message; $('retry-load').hidden = false; $('retry-load').onclick = () => location.reload(); }
   requestAnimationFrame(tick);
 })();
